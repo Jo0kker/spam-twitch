@@ -63,7 +63,12 @@ export async function createEbs(options = {}) {
       if (request.method === 'OPTIONS') { response.writeHead(204); response.end(); return; }
       const url = new URL(request.url, 'http://ebs.local');
       if (request.method === 'GET' && url.pathname === '/health') return json(response, 200, { ok: true, service: 'SPAM Twitch EBS', version: '0.1.0' });
-      if (request.method === 'GET' && ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html', '/downloads.json'].includes(url.pathname)) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
+      if (['GET', 'HEAD'].includes(request.method) && ['/downloads.json', '/downloads/SPAM-Twitch-Setup-0.1.0.exe', '/downloads/SPAM-Twitch-Companion-0.1.0.zip'].includes(url.pathname)) {
+        const asset = url.pathname.endsWith('.exe') ? '/download/SPAM-Twitch-Setup.exe' : url.pathname === '/downloads.json' ? '/download/update.json' : '';
+        response.writeHead(302, { Location: 'https://github.com/Jo0kker/spam-twitch/releases/latest' + asset, 'Cache-Control': 'no-cache' });
+        response.end(); return;
+      }
+      if (request.method === 'GET' && ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html'].includes(url.pathname)) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
       const companionFilename = 'SPAM-Twitch-Companion-0.1.0.zip';
       if (['GET', 'HEAD'].includes(request.method) && url.pathname === `/downloads/${companionFilename}`) return await downloadFile(response, resolve(options.downloadDirectory ?? resolve(root, 'downloads'), companionFilename), companionFilename, request.method === 'HEAD');
       const installerFilename = 'SPAM-Twitch-Setup-0.1.0.exe';
