@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, copyFile } from 'node:fs/promises';
 import { createHash, sign, createPublicKey } from 'node:crypto';
 import { resolve } from 'node:path';
 const { version } = JSON.parse(await readFile('package.json', 'utf8'));
@@ -9,10 +9,11 @@ if (createPublicKey(key).export({ type: 'spki', format: 'pem' }) !== config.publ
 if (process.env.GITHUB_REF_TYPE === 'tag' && process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error('Le tag doit correspondre à la version.');
 const filename = `SPAM-Twitch-Setup-${version}.exe`;
 const bytes = await readFile(resolve('dist', filename));
+await copyFile(resolve('dist', filename), 'dist/SPAM-Twitch-Setup.exe');
 const manifest = Buffer.from(JSON.stringify({ repository: config.repository, version, filename, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }, null, 2) + '\n');
 await writeFile('dist/update.json', manifest);
 await writeFile('dist/update.json.sig', sign(null, manifest, key).toString('base64') + '\n');
-const assets = [filename, `SPAM-Twitch-Companion-${version}.zip`, 'update.json', 'update.json.sig'];
+const assets = [filename, 'SPAM-Twitch-Setup.exe', `SPAM-Twitch-Companion-${version}.zip`, 'update.json', 'update.json.sig'];
 const checksums = await Promise.all(assets.map(async name => `${createHash('sha256').update(await readFile(resolve('dist', name))).digest('hex')}  ${name}`));
 await writeFile('dist/SHA256SUMS.txt', checksums.join('\n') + '\n');
 console.log(`Manifeste signé pour ${config.repository} v${version}`);

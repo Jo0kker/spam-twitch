@@ -34,6 +34,9 @@ jobs:
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           node tests/desktop-lifecycle.mjs "dist/SPAM-Twitch-Companion-$version/SpamCardInspector.exe"
+      - name: Installer and update helper lifecycle
+        shell: powershell
+        run: ./tests/windows-installer.ps1
       - name: Sign update manifest
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -45,6 +48,7 @@ jobs:
         with:
           subject-path: |
             dist/SPAM-Twitch-Setup-*.exe
+            dist/SPAM-Twitch-Setup.exe
             dist/SPAM-Twitch-Companion-*.zip
             dist/update.json
       - name: Store build artifacts
@@ -53,6 +57,7 @@ jobs:
           name: spam-twitch-windows
           path: |
             dist/SPAM-Twitch-Setup-*.exe
+            dist/SPAM-Twitch-Setup.exe
             dist/SPAM-Twitch-Companion-*.zip
             dist/update.json*
             dist/SHA256SUMS.txt
@@ -64,4 +69,4 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          gh release create "v$version" "dist/SPAM-Twitch-Setup-$version.exe" "dist/SPAM-Twitch-Companion-$version.zip" dist/update.json dist/update.json.sig dist/SHA256SUMS.txt --verify-tag --title "SPAM Card Inspector $version" --notes-file docs/RELEASE-NOTES.md
+          gh release create "v$version" "dist/SPAM-Twitch-Setup-$version.exe" dist/SPAM-Twitch-Setup.exe "dist/SPAM-Twitch-Companion-$version.zip" dist/update.json dist/update.json.sig dist/SHA256SUMS.txt --verify-tag --title "SPAM Card Inspector $version" --notes-file docs/RELEASE-NOTES.md

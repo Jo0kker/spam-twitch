@@ -27,12 +27,22 @@ $fixtureConfig = '{"channelId":"123","publisherToken":"installer-fixture-only"}'
 [IO.File]::WriteAllText($privateFile, $fixtureConfig)
 Install-TestBuild
 Assert-Installer ([IO.File]::ReadAllText($privateFile) -eq $fixtureConfig) 'Upgrade lost existing association.'
+$testInstaller = Join-Path $projectRoot 'dist\SPAM-Twitch-Setup-Test.exe'
+$updateHelper = Join-Path $fixtureRoot 'Apply-Update.ps1'
+Copy-Item -LiteralPath (Join-Path $projectRoot 'tools\Apply-Update.ps1') -Destination $updateHelper
+$cachedInstaller = Join-Path $fixtureRoot 'Update.exe'
+Copy-Item -LiteralPath $testInstaller -Destination $cachedInstaller
+$installerHash = (Get-FileHash -LiteralPath $cachedInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+$helperProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $updateHelper + '"'), '-Installer', ('"' + $cachedInstaller + '"'), '-InstallDirectory', ('"' + $installRoot + '"'), '-Sha256', $installerHash, '-ParentId', '2147483647') -WindowStyle Hidden -Wait -PassThru
+Assert-Installer ($helperProcess.ExitCode -eq 0) 'Automatic update helper failed.'
+Assert-Installer (!(Test-Path -LiteralPath $cachedInstaller)) 'Successful update left cached installer.'
+Assert-Installer ([IO.File]::ReadAllText($privateFile) -eq $fixtureConfig) 'Automatic update lost association.'
 $uninstall = Start-Process -FilePath (Join-Path $installRoot 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WindowStyle Hidden -Wait -PassThru
 Assert-Installer ($uninstall.ExitCode -eq 0) 'Uninstall failed.'
 Assert-Installer (!(Test-Path -LiteralPath (Join-Path $installRoot 'runtime\node.exe'))) 'Uninstall left tracked runtime.'
 Assert-Installer (!(Test-Path -LiteralPath (Join-Path $installRoot 'SpamCardInspector.exe'))) 'Uninstall left desktop executable.'
 Assert-Installer (!(Test-Path -LiteralPath $shortcut)) 'Uninstall left start menu shortcut.'
 Assert-Installer ([IO.File]::ReadAllText($privateFile) -eq $fixtureConfig) 'Uninstall removed retained user configuration.'
-Write-Output 'PASS: fresh install, shortcuts, upgrade preserving association, uninstall preserving user data. Existing game and companion untouched.'
+Write-Output 'PASS: fresh install, shortcuts, upgrade and automatic update preserving association, uninstall preserving user data. Existing game and companion untouched.'
 # Only this uniquely-created and checked fixture tree is removed.
 Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
