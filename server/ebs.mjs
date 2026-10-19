@@ -69,10 +69,6 @@ export async function createEbs(options = {}) {
         response.end(); return;
       }
       if (request.method === 'GET' && ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html'].includes(url.pathname)) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
-      const companionFilename = 'SPAM-Twitch-Companion-0.1.0.zip';
-      if (['GET', 'HEAD'].includes(request.method) && url.pathname === `/downloads/${companionFilename}`) return await downloadFile(response, resolve(options.downloadDirectory ?? resolve(root, 'downloads'), companionFilename), companionFilename, request.method === 'HEAD');
-      const installerFilename = 'SPAM-Twitch-Setup-0.1.0.exe';
-      if (['GET', 'HEAD'].includes(request.method) && url.pathname === `/downloads/${installerFilename}`) return await downloadFile(response, resolve(options.downloadDirectory ?? resolve(root, 'downloads'), installerFilename), installerFilename, request.method === 'HEAD');
       if (request.method === 'POST' && url.pathname === '/api/pair-code') {
         const claims = verifyJwt(bearer(request), secret, { broadcaster: true });
         limiter.check(`issue:${claims.channel_id}`);

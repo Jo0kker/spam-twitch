@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $tools = Join-Path $projectRoot '.tools'
 New-Item -ItemType Directory -Path $tools -Force | Out-Null
