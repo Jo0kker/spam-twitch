@@ -19,7 +19,7 @@ async function refresh() {
     const connected = status.connector === 'connected';
     $('#game-status').textContent = connected ? 'SPAM connecté' : demo ? 'Mode démonstration' : 'En attente du jeu';
     $('#game-dot').classList.toggle('online', connected || demo);
-    $('#game-detail').textContent = connected ? 'Le connecteur reçoit les cartes en direct.' : demo ? 'Cartes fictives · aperçu local uniquement.' : status.pluginInstalled ? 'Ouvrez SPAM et un écran avec des cartes.' : 'Installez le connecteur, puis relancez SPAM.';
+    $('#game-detail').textContent = connected ? 'Le connecteur reçoit les cartes en direct.' : demo ? 'Cartes et talents fictifs · aperçu local uniquement.' : status.pluginInstalled ? 'Ouvrez SPAM et un écran avec des cartes.' : 'Installez le connecteur, puis relancez SPAM.';
     $('#card-count').textContent = status.cards;
     $('#scene-detail').textContent = connected ? `Écran : ${status.scene || 'SPAM'}` : demo ? 'Les exemples ne sont pas envoyés sur Twitch.' : 'Aucune donnée à afficher pour le moment.';
     const connection = status.connection || { state: 'checking' }, device = connection.device;
@@ -39,11 +39,11 @@ async function refresh() {
     if (associationView !== nextView) { $('#pair-more').open = !paired || connection.state === 'revoked'; associationView = nextView; }
     $('#preview-source').textContent = demo ? 'DÉMONSTRATION' : connected ? 'DONNÉES DU JEU' : 'EN ATTENTE';
     $('#preview-source').classList.toggle('live', connected); $('#preview-source').classList.toggle('demo', demo);
-    $('#demo-button').textContent = demo ? 'Revenir au jeu' : 'Essayer une démo';
+    $('#demo-button').textContent = demo ? 'Revenir au jeu' : 'Tester cartes et talents';
     $('#last-sync').textContent = status.lastFrameAt ? `Dernière lecture : ${new Date(status.lastFrameAt).toLocaleTimeString('fr-FR')}` : 'En attente de données';
     $('#unpair').hidden = !status.config.channelId;
     $('#unpair').textContent = connection.state === 'revoked' ? 'Effacer cette ancienne association' : 'Révoquer l’accès de ce PC';
-    $('#install-button').textContent = status.pluginInstalled ? 'Connecteur installé ✓' : 'Installer le connecteur'; $('#install-button').disabled = status.pluginInstalled;
+    $('#install-button').textContent = status.pluginInstalled ? 'Mettre à jour le connecteur' : 'Installer le connecteur'; $('#install-button').disabled = busy;
     if (document.activeElement !== $('#game-path') && !$('#game-path').value) $('#game-path').value = status.config.gamePath;
     if (document.activeElement !== $('#backend-url') && !$('#backend-url').value) $('#backend-url').value = status.config.backendUrl;
     if (document.activeElement !== $('#device-name') && !$('#device-name').value) $('#device-name').value = status.config.deviceName || 'PC de stream';

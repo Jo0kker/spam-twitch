@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { existsSync } from 'node:fs';
 import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -170,7 +171,11 @@ export async function createLocal(options = {}) {
       if (request.method === 'POST' && url.pathname === '/api/local/install') {
         if (!config.gamePath) throw new HttpError(400, 'Indique le dossier de SPAM.');
         const script = join(root, 'tools/Install-Connector.ps1');
-        const result = await runFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-GamePath', config.gamePath], { windowsHide: true, timeout: 60000, maxBuffer: 1024 * 1024 });
+        // Recompile the current shipped source: an old cached DLL must not survive an app update.
+        await runFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(root, 'tools/Build-Connector.ps1'), '-GamePath', config.gamePath], { windowsHide: true, timeout: 60000, maxBuffer: 1024 * 1024 });
+        const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-GamePath', config.gamePath];
+        if (existsSync(join(config.gamePath, 'BepInEx/spam-twitch-install.json'))) args.push('-Update');
+        const result = await runFile('powershell.exe', args, { windowsHide: true, timeout: 60000, maxBuffer: 1024 * 1024 });
         return json(response, 200, { message: result.stdout.trim() });
       }
       if (request.method === 'GET' && url.pathname === '/health') return json(response, 200, { ok: true, service: 'SPAM Twitch Companion', version: options.version || 'développement' });

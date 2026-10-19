@@ -41,6 +41,27 @@ test('OBS alignment accounts for letterboxing, crop and the game rectangle', () 
   assert.throws(() => validateLayout({ cropLeft: .6, cropRight: .5 }));
 });
 
+test('talent rows survive the existing viewer protocol and disappear with the draft screen', () => {
+  const snapshot = demoSnapshot();
+  const talent = { instanceId: 'talent:123:2', cardId: 'talent:armor', name: 'Blindage N/T',
+    element: 'Talent', side: 'ally', hp: 0, maxHp: 0, income: 0, order: 2,
+    bounds: { x: .27, y: .87, w: .17, h: .04 },
+    abilities: [{ id: 'armor', name: 'Wiss · Verrouillé', kind: 'passive',
+      description: 'Résistance nature (+25 %)\nRésistance terre (+25 %)', cooldown: 0, maxCooldown: 0 }] };
+  snapshot.cards.push(talent);
+  const timeline = new Timeline(); timeline.add(snapshot, DEFAULT_LAYOUT, 10000);
+  const buffer = new FrameBuffer(); buffer.ingest(timeline.read(0, 0, 10000), 10000, 10000);
+  const received = buffer.select(10000, 0).cards.find(card => card.instanceId === talent.instanceId);
+  assert.equal(received.name, talent.name);
+  assert.deepEqual(received.abilities, talent.abilities);
+  const mapped = mapBounds(received.bounds, DEFAULT_LAYOUT, 2000, 1125);
+  for (const [key, expected] of Object.entries({ x: 540, y: 978.75, w: 340, h: 45 })) assert.ok(Math.abs(mapped[key] - expected) < 1e-8);
+  const combat = demoSnapshot(2); combat.cards = combat.cards.filter(card => !card.instanceId.startsWith('talent:'));
+  timeline.add({ ...combat, sessionId: snapshot.sessionId }, DEFAULT_LAYOUT, 11000);
+  buffer.ingest(timeline.read(1, 0, 11000), 11000, 11000);
+  assert.equal(buffer.select(11000, 0).cards.some(card => card.instanceId.startsWith('talent:')), false);
+});
+
 test('new viewers receive the historical state matching their delayed video', () => {
   const timeline = new Timeline();
   for (let index = 1; index <= 12; index++) timeline.add({ ...demoSnapshot(index), sessionId: 'one' }, DEFAULT_LAYOUT, index * 1000);

@@ -96,6 +96,15 @@ test('companion confirms connectivity without the game and unpair revokes the ac
   assert.equal(state.connection.state, 'active'); assert.equal(state.connector, 'waiting'); assert.equal(state.connection.device.transmitting, false);
   assert.equal(JSON.stringify(state).includes('publisherToken'), false);
   const privateConfig = JSON.parse(await readFile(join(runtime, 'companion.json')));
+  assert.equal((await local('/api/local/demo', { enabled: true })).status, 200);
+  const preview = await (await local('/api/local/state')).json();
+  const talents = preview.frames.at(-1).cards.filter(card => card.instanceId.startsWith('talent:'));
+  assert.equal(talents.length, 3);
+  assert.deepEqual(talents.map(card => card.abilities[0].name.split(' · ')[1]), ['Disponible', 'Sélectionné', 'Verrouillé']);
+  await new Promise(resolve => setTimeout(resolve, 800));
+  assert.equal((await (await call('/api/state')).json()).frames.length, 0, 'Demo talents must never reach the public backend.');
+  await local('/api/local/demo', { enabled: false });
+  assert.equal((await (await local('/api/local/state')).json()).frames.length, 0, 'Leaving demo removes the simulated targets.');
   assert.equal((await local('/api/local/unpair', {})).status, 200);
   assert.equal((await call('/api/publisher/heartbeat', 'POST', privateConfig.publisherToken)).status, 401);
   assert.equal((await (await local('/api/local/status')).json()).connection.state, 'unpaired');

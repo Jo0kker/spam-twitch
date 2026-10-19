@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 
 namespace SpamTwitch
 {
-    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.2")]
+    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.3")]
     [BepInProcess("SPAM.exe")]
     public sealed class SpamTwitchPlugin : BaseUnityPlugin
     {
@@ -24,11 +24,15 @@ namespace SpamTwitch
         private float nextCapture;
         private float nextDiscovery;
         private CardController[] controllers = new CardController[0];
+        private DraftTalentCardController[] talentCards = new DraftTalentCardController[0];
         private readonly string sessionId = Guid.NewGuid().ToString("N");
         private long sequence;
         private DateTime nextError;
         private readonly Vector3[] corners = new Vector3[4];
         private static readonly FieldInfo WireSmoked = typeof(Card).GetField("_wireSmoked", BindingFlags.Instance | BindingFlags.NonPublic);
+        // These are the rows actually exposed by the draft screen, not the full talent catalog.
+        private static readonly FieldInfo DraftCard = typeof(DraftTalentCardController).GetField("_cardController", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo DraftRows = typeof(DraftTalentCardController).GetField("_talentRows", BindingFlags.Instance | BindingFlags.NonPublic);
 
         private void Awake()
         {
@@ -62,6 +66,7 @@ namespace SpamTwitch
             {
                 nextDiscovery = Time.realtimeSinceStartup + 1f;
                 controllers = UnityEngine.Object.FindObjectsByType<CardController>(FindObjectsSortMode.None);
+                talentCards = UnityEngine.Object.FindObjectsByType<DraftTalentCardController>(FindObjectsSortMode.None);
             }
             var cards = new List<object>();
             foreach (var controller in controllers)
@@ -133,6 +138,7 @@ namespace SpamTwitch
                     }
                 }
             }
+            CaptureTalents(cards);
             var snapshot = new {
                 version = 1, sessionId = sessionId, sequence = ++sequence,
                 capturedAt = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalMilliseconds,
@@ -144,6 +150,71 @@ namespace SpamTwitch
             File.WriteAllText(temporary, JsonConvert.SerializeObject(snapshot));
             if (File.Exists(target)) File.Replace(temporary, target, null);
             else File.Move(temporary, target);
+        }
+
+        private void CaptureTalents(List<object> cards)
+        {
+            if (DraftCard == null || DraftRows == null) return;
+            foreach (var draft in talentCards)
+            {
+                if (cards.Count >= 64) break;
+                try
+                {
+                    if (!draft || !draft.isActiveAndEnabled || !Visible(draft)) continue;
+                    var controller = DraftCard.GetValue(draft) as CardController;
+                    var rows = DraftRows.GetValue(draft) as TalentRowController[];
+                    if (!controller || !controller.isActiveAndEnabled || !Visible(controller) ||
+                        controller.IsReturned || controller.RunningIsReturned || rows == null) continue;
+                    if (!controller.FrontMask || !controller.FrontMask.gameObject.activeInHierarchy) continue;
+                    var board = controller.GetComponentInParent<BoardCardController>();
+                    if (board && (board.IsHiddenOnScreen || board.IsShuffling)) continue;
+                    // Resolve the same model as DraftTalentCardController.UpdateTalent.
+                    Card runtime = String.IsNullOrEmpty(controller.CardGameId) ? null : GameClient.GetCard(controller.CardGameId);
+                    if (!String.IsNullOrEmpty(controller.CardGameId) && runtime == null) continue;
+                    if (runtime != null && (runtime.IsSmoked() ||
+                        (WireSmoked != null && (bool)WireSmoked.GetValue(runtime)))) continue;
+                    var data = runtime != null ? runtime.CardData : controller.CardData;
+                    if (data == null) continue;
+                    for (int index = 0; index < rows.Length && cards.Count < 64; index++)
+                    {
+                        var row = rows[index];
+                        // Opponent panels and unused rows are hidden by the game: never export them.
+                        if (!row || !row.isActiveAndEnabled || !Visible(row)) continue;
+                        var rect = row.transform as RectTransform;
+                        if (!rect) continue;
+                        var bounds = Bounds(rect);
+                        if (bounds == null) continue;
+                        var talent = index == 0 ? TalentData.NoTalent :
+                            (data.Talents != null && index - 1 < data.Talents.Count ? data.Talents[index - 1] : null);
+                        if (!talent) continue;
+                        var title = Plain(talent.Name);
+                        var description = Plain(talent.Description);
+                        if (String.IsNullOrEmpty(title)) continue;
+                        var state = row.Value ? "Sélectionné" : (row.IsUnlocked ? "Disponible" : "Verrouillé");
+                        // Reuse protocol v1 hover targets and passive descriptions. No Twitch asset update.
+                        cards.Add(new {
+                            instanceId = "talent:" + draft.GetInstanceID() + ":" + index,
+                            cardId = "talent:" + talent.id,
+                            name = title, description = "", element = "Talent",
+                            hp = 0, maxHp = 0, income = 0,
+                            side = runtime != null ? (controller.IsMyCard ? "ally" : "opponent") : "collection",
+                            bounds = bounds, order = index,
+                            abilities = new [] { new {
+                                id = talent.id, name = Plain(data.Name) + " · " + state,
+                                kind = "passive", description = description, cooldown = 0, maxCooldown = 0
+                            } }
+                        });
+                    }
+                }
+                catch (Exception error)
+                {
+                    if (DateTime.UtcNow >= nextError)
+                    {
+                        nextError = DateTime.UtcNow.AddSeconds(15);
+                        Logger.LogWarning("Talent rows were skipped: " + error);
+                    }
+                }
+            }
         }
 
         private static bool Visible(Component component)

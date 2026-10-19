@@ -56,7 +56,7 @@ test('full pairing, publishing, Twitch authentication, channel isolation and cod
   const notificationClaims = JSON.parse(Buffer.from(notifications[0].request.headers.Authorization.split('.')[1], 'base64url').toString());
   assert.equal(notificationClaims.user_id, '123'); assert.equal(notificationClaims.channel_id, '123');
   const received = await call('/api/state', 'GET', viewer); const state = await received.json();
-  assert.equal(state.frames.at(-1).cards.length, 3);
+  assert.equal(state.frames.at(-1).cards.length, snapshot.cards.length);
   assert.equal((await (await call('/api/state', 'GET', otherViewer)).json()).frames.length, 0);
   assert.equal((await call('/api/state', 'GET', '')).status, 401);
   assert.equal((await call('/api/layout', 'PUT', viewer, {})).status, 401);
