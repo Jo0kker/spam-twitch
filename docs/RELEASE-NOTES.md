@@ -1,5 +1,5 @@
-# SPAM Card Inspector 0.4.2
+# SPAM Card Inspector 0.5.0
 
-L’icône SPAM Card Inspector remplace celle d’Electron dans le programme Windows, la fenêtre, la barre des tâches, les raccourcis et l’installateur. Le fond de démarrage de la fenêtre suit le thème sombre.
+Le compagnon, les menus Windows, l’installateur et le site sont disponibles en français et en anglais. Un sélecteur FR / EN permet de changer de langue ; le choix est conservé. La langue initiale suit celle du système ou du navigateur.
 
-Aucune modification de l’extension Twitch en cours d’examen.
+Les noms et descriptions des cartes restent dans la langue fournie par SPAM. L’extension Twitch en cours d’examen est inchangée.

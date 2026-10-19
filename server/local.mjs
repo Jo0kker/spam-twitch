@@ -31,7 +31,7 @@ export async function createLocal(options = {}) {
   const runtime = resolve(options.runtimePath || resolve(root, '.runtime'));
   const configPath = resolve(runtime, 'companion.json');
   await mkdir(runtime, { recursive: true });
-  let config = { gamePath: '', backendUrl: '', channelId: '', publisherToken: '', deviceName: 'PC de stream', layout: { ...DEFAULT_LAYOUT } };
+  let config = { language: options.language?.toLowerCase().startsWith('fr') ? 'fr' : options.language ? 'en' : '', gamePath: '', backendUrl: '', channelId: '', publisherToken: '', deviceName: 'PC de stream', layout: { ...DEFAULT_LAYOUT } };
   try { config = { ...config, ...JSON.parse(await readFile(configPath, 'utf8')) }; } catch (error) { if (error.code !== 'ENOENT') throw error; }
   config.gamePath ||= await discoverGame();
   config.layout = validateLayout(config.layout);
@@ -43,7 +43,7 @@ export async function createLocal(options = {}) {
   let heartbeatRunning = false, lastHeartbeatAt = 0;
   let remoteConnection = { state: config.publisherToken ? 'checking' : 'unpaired', device: null, checkedAt: null, error: '' };
   const save = async () => { await writeFile(configPath + '.tmp', JSON.stringify(config, null, 2), { mode: 0o600 }); await rename(configPath + '.tmp', configPath); };
-  const publicConfig = () => ({ gamePath: config.gamePath, backendUrl: config.backendUrl, channelId: config.channelId, deviceName: config.deviceName, layout: config.layout });
+  const publicConfig = () => ({ language: config.language, gamePath: config.gamePath, backendUrl: config.backendUrl, channelId: config.channelId, deviceName: config.deviceName, layout: config.layout });
   const baseUrl = value => {
     let url;
     try { url = new URL(value); } catch { throw new HttpError(400, 'Adresse du serveur invalide.'); }
@@ -140,6 +140,7 @@ export async function createLocal(options = {}) {
           if (!(await stat(join(input.gamePath, 'SPAM.exe')).then(value => value.isFile(), () => false))) throw new HttpError(400, 'Le dossier doit contenir SPAM.exe.');
           config.gamePath = input.gamePath; lastFileTime = 0;
         }
+        if (['fr', 'en'].includes(input.language)) { config.language = input.language; options.onLanguageChange?.(config.language); }
         if (input.layout) config.layout = validateLayout(input.layout);
         await save(); if (state) timeline.add(state, config.layout);
         return json(response, 200, publicConfig());
@@ -182,11 +183,13 @@ export async function createLocal(options = {}) {
         return json(response, 200, { message: result.stdout.trim() });
       }
       if (request.method === 'GET' && url.pathname === '/health') return json(response, 200, { ok: true, service: 'SPAM Twitch Companion', version: options.version || 'développement' });
+      if (request.method === 'GET' && ['/language.mjs', '/translate.mjs', '/en.json'].includes(url.pathname)) return await staticFile(response, join(root, 'server/site'), url.pathname);
       if (request.method === 'GET' && url.pathname.startsWith('/extension/')) return await staticFile(response, join(root, 'extension'), url.pathname.slice(10));
       if (request.method === 'GET') return await staticFile(response, join(root, 'companion'), url.pathname === '/' ? '/index.html' : url.pathname);
       throw new HttpError(404, 'Route introuvable.');
     } catch (error) { fail(response, error); }
   });
+  options.onLanguageChange?.(config.language);
   const timer = setInterval(() => void tick(), 250); timer.unref();
   server.on('close', () => clearInterval(timer));
   server.requestTimeout = 15000; server.headersTimeout = 10000;

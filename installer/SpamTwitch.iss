@@ -1,4 +1,4 @@
-#ifndef SourceRoot
+﻿#ifndef SourceRoot
   #error SourceRoot must point to the prepared companion folder
 #endif
 #ifndef OutputRoot
@@ -49,20 +49,31 @@ SetupLogging=yes
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+french.DesktopShortcut=Créer un raccourci sur le Bureau
+english.DesktopShortcut=Create a desktop shortcut
+french.StopApp=Arrêter SPAM Card Inspector
+english.StopApp=Stop SPAM Card Inspector
+french.OpenApp=Ouvrir SPAM Card Inspector pour configurer le jeu et Twitch
+english.OpenApp=Open SPAM Card Inspector to set up the game and Twitch
+french.CloseAppError=Impossible d’arrêter le compagnon installé. Fermez-le avant de réessayer.
+english.CloseAppError=Cannot stop the installed companion. Close it before trying again.
 
 [Tasks]
-Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; Flags: unchecked
 
 [Files]
 Source: "{#SourceRoot}\*"; DestDir: "{app}"; Excludes: ".runtime\*,config.local.json"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#ProductName}"; Filename: "{app}\SpamCardInspector.exe"; WorkingDir: "{app}"
-Name: "{group}\Arrêter SPAM Card Inspector"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\tools\Start-Companion.ps1"" -Stop"; WorkingDir: "{app}"
+Name: "{group}\{cm:StopApp}"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\tools\Start-Companion.ps1"" -Stop"; WorkingDir: "{app}"
 Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\SpamCardInspector.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\SpamCardInspector.exe"; Description: "Ouvrir SPAM Card Inspector pour configurer le jeu et Twitch"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\SpamCardInspector.exe"; Description: "{cm:OpenApp}"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\tools\Start-Companion.ps1"" -Stop"; Flags: runhidden skipifdoesntexist; RunOnceId: "StopOwnedCompanion"
@@ -80,8 +91,8 @@ begin
     if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
       '-NoProfile -ExecutionPolicy Bypass -File "' + StopScript + '" -Stop', '',
       SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-      Result := 'Impossible d’arrêter le compagnon installé. Fermez-le avant de réessayer.'
+      Result := CustomMessage('CloseAppError')
     else if ResultCode <> 0 then
-      Result := 'Le compagnon installé ne peut pas être arrêté. Fermez-le avant de réessayer.';
+      Result := CustomMessage('CloseAppError');
   end;
 end;

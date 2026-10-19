@@ -19,11 +19,14 @@ if (testDirectory) app.setPath('userData', path.join(runtime, 'profile'));
 const quitRequested = process.argv.includes('--quit');
 const ownsLock = app.requestSingleInstanceLock({ quit: quitRequested });
 let window, server, stopping = false, origin = '';
+let language = 'fr', dictionary, translate = source => source, translateMessage = source => source;
+const t = (source, values) => translate(source, language, dictionary, values);
+const message = source => translateMessage(source, language, dictionary);
 let updater, updateLabel = { label: 'Recherche de mise à jour…', enabled: false };
 function refreshMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: 'Application', submenu: [updateLabel, { label: 'Rechercher une mise à jour', click: () => updater?.check() }, { type: 'separator' }, { label: 'Quitter', click: () => app.quit() }] },
-    { label: 'Affichage', submenu: [{ role: 'resetZoom', label: 'Taille normale' }, { role: 'zoomIn', label: 'Agrandir' }, { role: 'zoomOut', label: 'Réduire' }] }
+    { label: 'Application', submenu: [{...updateLabel, label: message(updateLabel.label)}, { label: t('Rechercher une mise à jour'), click: () => updater?.check() }, { type: 'separator' }, { label: t('Quitter'), click: () => app.quit() }] },
+    { label: t('Affichage'), submenu: [{ role: 'resetZoom', label: t('Taille normale') }, { role: 'zoomIn', label: t('Agrandir') }, { role: 'zoomOut', label: t('Réduire') }] }
   ]));
 }
 const recordPath = path.join(runtime, 'desktop-process.json');
@@ -33,7 +36,7 @@ async function finish() {
   finish.started = true;
   if (!testDirectory) {
     try { await updater?.installOnExit(); }
-    catch (error) { dialog.showErrorBox('Mise à jour non installée', error.message + '\nLa version actuelle reste utilisable.'); }
+    catch (error) { dialog.showErrorBox(t('Mise à jour non installée'), message(error.message) + '\n' + t('La version actuelle reste utilisable.')); }
   }
   try {
     const record = JSON.parse(await fs.readFile(recordPath, 'utf8'));
@@ -66,11 +69,14 @@ if (!ownsLock || quitRequested) {
   app.quit();
 } else {
   app.whenReady().then(async () => {
+    ({ translate, translateMessage } = await import(pathToFileURL(path.join(root, 'server/site/translate.mjs')).href));
+    dictionary = JSON.parse(await fs.readFile(path.join(root, 'server/site/en.json'), 'utf8'));
+    language = app.getLocale().toLowerCase().startsWith('fr') ? 'fr' : 'en';
     await fs.mkdir(runtime, { recursive: true });
     // Migrate only the old daemon owned by this installation, before registering this app.
     if (!testDirectory) await runFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'tools/Start-Companion.ps1'), '-Stop', '-LegacyOnly'], { windowsHide: true, timeout: 10000 });
     const { createLocal } = await import(pathToFileURL(path.join(root, 'server/local.mjs')).href);
-    ({ server } = await createLocal({ runtimePath: runtime, version }));
+    ({ server } = await createLocal({ runtimePath: runtime, version, language, onLanguageChange: value => { if (['fr', 'en'].includes(value)) language = value; refreshMenu(); } }));
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     origin = `http://127.0.0.1:${server.address().port}`;
     await fs.writeFile(recordPath, JSON.stringify({ processId: process.pid, executable: process.execPath, appRoot: root, port: server.address().port }));
@@ -95,6 +101,8 @@ if (!ownsLock || quitRequested) {
     if (testDirectory) {
       const response = await fetch(origin + '/api/local/status');
       report.loaded = response.ok;
+      report.language = language;
+      report.menuLabels = Menu.getApplicationMenu().items.map(item => item.label);
       report.port = server.address().port;
       report.ownedProcessIds = app.getAppMetrics().map(item => item.pid);
       await fs.writeFile(path.join(runtime, 'lifecycle-ready.json'), JSON.stringify(report));
@@ -103,6 +111,6 @@ if (!ownsLock || quitRequested) {
   }).catch(async error => {
     if (stopping) return;
     if (testDirectory) { await fs.mkdir(runtime, { recursive: true }); await fs.writeFile(path.join(runtime, 'lifecycle-error.txt'), error.stack || error.message); app.exit(1); }
-    else { dialog.showErrorBox('SPAM Card Inspector', `Impossible de démarrer l’application.\n${error.message}`); app.quit(); }
+    else { dialog.showErrorBox('SPAM Card Inspector', t('Impossible de démarrer l’application.') + '\n' + message(error.message)); app.quit(); }
   });
 }
