@@ -75,7 +75,7 @@ if (!ownsLock || quitRequested) {
     origin = `http://127.0.0.1:${server.address().port}`;
     await fs.writeFile(recordPath, JSON.stringify({ processId: process.pid, executable: process.execPath, appRoot: root, port: server.address().port }));
     window = new BrowserWindow({ width: 1080, height: 820, minWidth: 760, minHeight: 600, show: false,
-      title: 'SPAM Card Inspector', backgroundColor: '#f4f6f8',
+      title: 'SPAM Card Inspector', backgroundColor: '#10151b', icon: path.join(__dirname, 'assets/app.ico'),
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
     refreshMenu();
     window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));

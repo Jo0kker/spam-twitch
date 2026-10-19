@@ -33,3 +33,7 @@ https://dev.twitch.tv/docs/extensions/reference/
 ## SPAM
 
 Le jeu, ses assemblies, illustrations et ressources ne sont pas distribuÃ©s avec ce projet. Le connecteur rÃ©fÃ©rence les assemblies de lâ€™installation locale lors de sa compilation et lit les cartes affichÃ©es au moment de son exÃ©cution. SPAM et ses contenus appartiennent Ã  leurs ayants droit.
+
+## Édition des ressources Windows (build uniquement)
+
+rcedit 2.0.0, sous licence MIT : https://github.com/electron/rcedit/tree/v2.0.0. Utilisé pour intégrer l’icône au programme, sans être distribué avec le compagnon. Licence : `third-party/RCEDIT-LICENSE.txt` dans les sources.

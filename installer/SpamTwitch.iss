@@ -39,6 +39,7 @@ Compression=lzma2/fast
 #endif
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile={#SourceRoot}\resources\app\assets\app.ico
 DisableProgramGroupPage=yes
 UninstallDisplayName={#ProductName}
 UninstallDisplayIcon={app}\SpamCardInspector.exe

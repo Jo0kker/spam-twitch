@@ -1,5 +1,5 @@
-# SPAM Card Inspector 0.4.1
+# SPAM Card Inspector 0.4.2
 
-Le site et le compagnon conservent leur interface simple avec un thème sombre, y compris les champs, les tableaux et les messages de statut.
+L’icône SPAM Card Inspector remplace celle d’Electron dans le programme Windows, la fenêtre, la barre des tâches, les raccourcis et l’installateur. Le fond de démarrage de la fenêtre suit le thème sombre.
 
 Aucune modification de l’extension Twitch en cours d’examen.

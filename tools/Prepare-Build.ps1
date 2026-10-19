@@ -18,3 +18,5 @@ if (!(Test-Path -LiteralPath (Join-Path $inno 'ISCC.exe'))) {
     $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER', ('/DIR="' + $inno + '"')) -WindowStyle Hidden -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw 'Installation du compilateur Inno Setup impossible.' }
 }
+
+Get-VerifiedArchive 'https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe' 'rcedit-x64.exe' '3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a' '' | Out-Null

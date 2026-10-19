@@ -21,6 +21,10 @@ await cp(join(root, '.tools/bepinex'), join(folder, '.tools/bepinex'), { recursi
 await cp(join(root, 'third-party/BEPINEX-LICENSE.txt'), join(folder, '.tools/bepinex/BEPINEX-LICENSE.txt'));
 await cp(join(root, '.tools/electron'), folder, { recursive: true });
 await rename(join(folder, 'electron.exe'), join(folder, 'SpamCardInspector.exe'));
+// Embed the product icon in the executable used by Explorer and Windows shortcuts.
+const resourceEditor = join(root, '.tools/rcedit-x64.exe');
+if (createHash('sha256').update(await readFile(resourceEditor)).digest('hex') !== '3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a') throw new Error('Éditeur de ressources non vérifié.');
+execFileSync(resourceEditor, [join(folder, 'SpamCardInspector.exe'), '--set-icon', join(root, 'desktop/assets/app.ico')], { windowsHide: true, stdio: 'pipe' });
 await cp(join(root, 'desktop'), join(folder, 'resources/app'), { recursive: true });
 const extensionFolder = join(dist, 'extension-assets'); await cp(join(root, 'extension'), extensionFolder, { recursive: true });
 const backendArgument = process.argv.find(argument => argument.startsWith('--backend-url='));
