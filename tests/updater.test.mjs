@@ -33,7 +33,8 @@ test('download is verified and staged; closing opts out of future work; bad payl
     await writeFile(join(directory, 'tools/Apply-Update.ps1'), '# fixture');
     const [bytes, signature] = encode(manifest);
     const requested = [];
-    const fakeFetch = async url => {
+    const fakeFetch = async (url, options) => {
+      assert.equal(options.headers.Accept, url.startsWith('https://api.github.com/') ? 'application/vnd.github+json' : 'application/octet-stream');
       requested.push(url);
       return new Response(url.endsWith('/latest') ? JSON.stringify({ tag_name: 'v0.3.0' }) : url.endsWith('/update.json') ? bytes : url.endsWith('/update.json.sig') ? signature : installer);
     };
@@ -43,7 +44,7 @@ test('download is verified and staged; closing opts out of future work; bad payl
     assert.deepEqual(await readFile(updater.pending.filename), installer);
     assert.match(labels.at(-1), /installation à la fermeture/);
     assert.equal(requested.length, 4);
-    const corrupted = new Updater({ config: { repository: manifest.repository, publicKey }, currentVersion: '0.2.0', cache, root: directory, notify() {}, fetchImpl: async url => url.endsWith('.exe') ? new Response('tampered') : fakeFetch(url) });
+    const corrupted = new Updater({ config: { repository: manifest.repository, publicKey }, currentVersion: '0.2.0', cache, root: directory, notify() {}, fetchImpl: async (url, options) => url.endsWith('.exe') ? new Response('tampered') : fakeFetch(url, options) });
     await corrupted.check();
     assert.equal(corrupted.pending, null);
     const disabled = new Updater({ config: {}, root: directory, notify() {}, fetchImpl: () => assert.fail('fetch after quit') });

@@ -48,7 +48,7 @@ class Updater {
       this.notify('Recherche de mise à jour…');
       const repository = this.config.repository;
       if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw new Error('Dépôt de mise à jour invalide.');
-      const get = (url, limit, timeout = 20000) => this.fetchImpl(url, { signal: AbortSignal.timeout(timeout), headers: { 'User-Agent': 'SPAM-Card-Inspector-Updater', 'Accept': 'application/octet-stream' } }).then(response => readBounded(response, limit));
+      const get = (url, limit, timeout = 20000) => this.fetchImpl(url, { signal: AbortSignal.timeout(timeout), headers: { 'User-Agent': 'SPAM-Card-Inspector-Updater', 'Accept': url.startsWith('https://api.github.com/') ? 'application/vnd.github+json' : 'application/octet-stream' } }).then(response => readBounded(response, limit));
       const release = JSON.parse((await get(`https://api.github.com/repos/${repository}/releases/latest`, 256 * 1024)).toString('utf8'));
       if (release.draft || release.prerelease || !/^v\d+\.\d+\.\d+$/.test(release.tag_name)) throw new Error('Publication de mise à jour invalide.');
       const base = `https://github.com/${repository}/releases/download/${release.tag_name}/`;

@@ -19,9 +19,9 @@ Fermer la fenêtre ou **Application → Quitter** arrête le compagnon et la tra
 
 ## Mises à jour
 
-À partir de la version 0.2.0 installée, l’application recherche les publications stables au démarrage et toutes les quatre heures. Elle télécharge la nouvelle version, vérifie son manifeste signé et son SHA256, puis l’installe à la fermeture. Elle ne se relance pas après la fermeture. Le menu **Application** affiche l’état et permet une recherche manuelle. L’association Twitch est conservée. Une panne réseau ne bloque pas le compagnon.
+À partir de la version 0.2.1 installée, l’application recherche les publications stables au démarrage et toutes les quatre heures. Elle télécharge la nouvelle version, vérifie son manifeste signé et son SHA256, puis l’installe à la fermeture. Elle ne se relance pas après la fermeture. Le menu **Application** affiche l’état et permet une recherche manuelle. L’association Twitch est conservée. Une panne réseau ne bloque pas le compagnon.
 
-La version portable reste disponible dans les publications ; elle ne s’installe pas automatiquement. La version 0.1.0 nécessite une première installation manuelle de 0.2.0 pour obtenir l’updater. Le connecteur installé dans le jeu n’est pas remplacé automatiquement pendant une partie.
+La version portable reste disponible dans les publications ; elle ne s’installe pas automatiquement. La version 0.1.0 nécessite une première installation manuelle de 0.2.1 pour obtenir l’updater. Le connecteur installé dans le jeu n’est pas remplacé automatiquement pendant une partie.
 
 ## Confiance et code signing policy
 
@@ -30,7 +30,7 @@ Le code du projet est sous [licence MIT](LICENSE). Les dépendances conservent l
 Les installateurs sont construits par le [workflow GitHub Actions](.github/workflows/build.yml). Les publications comportent les SHA256 et des attestations de provenance vérifiables avec :
 
 ```powershell
-gh attestation verify SPAM-Twitch-Setup-0.2.0.exe -R Jo0kker/spam-twitch
+gh attestation verify SPAM-Twitch-Setup-0.2.1.exe -R Jo0kker/spam-twitch
 ```
 
 L’installateur n’a **pas encore de signature Authenticode reconnue par Windows**. GitHub Actions et la signature des manifestes ne remplacent pas un certificat Windows. Une candidature à SignPath Foundation est envisagée, sans garantie d’acceptation. Voir la [code signing policy](docs/CODE-SIGNING.md) et [SECURITY.md](SECURITY.md).
@@ -43,7 +43,7 @@ Node 24.19.0 et PowerShell Windows sont nécessaires. Les dépendances de build 
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/Prepare-Build.ps1
 node --test tests/*.test.mjs
 node tools/package.mjs --skip-ebs
-node tests/desktop-lifecycle.mjs dist/SPAM-Twitch-Companion-0.2.0/SpamCardInspector.exe
+node tests/desktop-lifecycle.mjs dist/SPAM-Twitch-Companion-0.2.1/SpamCardInspector.exe
 ```
 
 Les artefacts sont dans `dist/`. Aucun fichier du jeu ni secret Twitch n’est nécessaire pour construire le compagnon. Le connecteur est compilé séparément sur le PC du joueur avec .NET Framework et les références du jeu.
