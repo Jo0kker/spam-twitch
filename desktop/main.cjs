@@ -70,7 +70,7 @@ if (!ownsLock || quitRequested) {
     // Migrate only the old daemon owned by this installation, before registering this app.
     if (!testDirectory) await runFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'tools/Start-Companion.ps1'), '-Stop', '-LegacyOnly'], { windowsHide: true, timeout: 10000 });
     const { createLocal } = await import(pathToFileURL(path.join(root, 'server/local.mjs')).href);
-    ({ server } = await createLocal({ runtimePath: runtime }));
+    ({ server } = await createLocal({ runtimePath: runtime, version }));
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     origin = `http://127.0.0.1:${server.address().port}`;
     await fs.writeFile(recordPath, JSON.stringify({ processId: process.pid, executable: process.execPath, appRoot: root, port: server.address().port }));

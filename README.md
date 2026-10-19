@@ -23,6 +23,12 @@ Fermer la fenêtre ou **Application → Quitter** arrête le compagnon et la tra
 
 La version portable reste disponible dans les publications ; elle ne s’installe pas automatiquement. La version 0.1.0 nécessite une première installation manuelle de 0.2.1 pour obtenir l’updater. Le connecteur installé dans le jeu n’est pas remplacé automatiquement pendant une partie.
 
+## État de l’association
+
+Le compagnon affiche en permanence le PC associé, la chaîne, le serveur, la date d’association et le dernier contact confirmé. « PC connecté » et « Transmission active » sont distincts : le jeu n’a pas besoin d’être ouvert pour confirmer la connexion du compagnon. Les métadonnées des anciennes associations sont conservées quand elles existent ; les dates manquantes ne sont pas inventées.
+
+Le panneau Twitch préparé affiche le PC actif ou hors ligne, le code en attente avec son compte à rebours, son utilisation et les actions d’annulation ou de révocation. Sa mise en ligne nécessite une version Twitch modifiable et un nouvel examen. La version 0.1.0 en cours d’examen reste inchangée.
+
 ## Confiance et code signing policy
 
 Le code du projet est sous [licence MIT](LICENSE). Les dépendances conservent leurs licences propres ; la licence du projet ne couvre ni SPAM ni ses illustrations. Voir [les notices tierces](THIRD-PARTY-NOTICES.md).
@@ -69,6 +75,6 @@ Pour désinstaller le connecteur, fermer SPAM puis lancer depuis le dossier du c
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/Install-Connector.ps1 -GamePath "C:\chemin\vers\SPAM" -Uninstall
 ```
 
-La désinstallation Windows retire le compagnon et conserve les données locales et le connecteur du jeu. Le retrait de l’association locale arrête les envois mais ne révoque pas la clé déjà stockée sur le serveur ; contacter le support pour sa suppression.
+La désinstallation Windows retire le compagnon et conserve les données locales et le connecteur du jeu. À partir du compagnon 0.3.0, « Révoquer l’accès de ce PC » révoque réellement la clé sur le serveur avant de retirer l’association locale. En cas de panne réseau, la révocation doit être réessayée. Le nouveau panneau Twitch permet également la révocation distante. Un seul PC est autorisé par chaîne ; associer un nouveau PC remplace le précédent. Les anciennes versions ne révoquent pas leur clé côté serveur.
 
 Support : benjamin@codible.net · [Confidentialité](https://spam-twitch.codible.net/privacy.html) · [Conditions](https://spam-twitch.codible.net/terms.html)

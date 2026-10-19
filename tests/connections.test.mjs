@@ -1,0 +1,117 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { mkdtemp, rm, writeFile, readFile, mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { once } from 'node:events';
+import { createEbs } from '../server/ebs.mjs';
+import { createLocal } from '../server/local.mjs';
+import { signJwt, tokenHash } from '../server/auth.mjs';
+import { demoSnapshot } from '../server/demo.mjs';
+
+async function fixture(t, legacy = false) {
+  const directory = await mkdtemp(join(tmpdir(), 'spam-connections-'));
+  const dataPath = join(directory, 'credentials.json'); const secret = randomBytes(32);
+  if (legacy) await writeFile(dataPath, JSON.stringify({ 123: { tokenHash: tokenHash('legacy-fixture-token') } }));
+  const servers = [];
+  async function start() {
+    const ebs = await createEbs({ secret, clientId: 'fixture', dataPath, disablePubSub: true });
+    ebs.server.listen(0, '127.0.0.1'); await once(ebs.server, 'listening'); servers.push(ebs.server);
+    return { ...ebs, origin: `http://127.0.0.1:${ebs.server.address().port}` };
+  }
+  t.after(async () => { for (const server of servers) if (server.listening) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); } await rm(directory, { recursive: true, force: true }); });
+  const jwt = (role = 'broadcaster', id = '123') => signJwt({ channel_id: id, role, exp: Math.floor(Date.now() / 1000) + 600 }, secret);
+  const ebs = await start();
+  const call = (path, method = 'GET', token = jwt(), input, id = '123') => fetch(ebs.origin + path, { method, headers: { Authorization: `Bearer ${token}`, 'x-channel-id': id, 'Content-Type': 'application/json' }, body: input === undefined ? undefined : JSON.stringify(input) });
+  const pair = async name => {
+    const issued = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
+    const result = await (await call('/api/pair', 'POST', '', { code: issued.code, deviceName: name })).json();
+    return { ...result, issued };
+  };
+  return { directory, dataPath, ebs, start, jwt, call, pair };
+}
+test('association status, pending code, heartbeat, replacement and durable revocation stay scoped to the channel', async t => {
+  const { ebs, start, jwt, call, pair, dataPath } = await fixture(t);
+  assert.equal((await call('/api/connection', 'GET', jwt('viewer'))).status, 401);
+  const first = await pair('PC stream');
+  const initial = await (await call('/api/connection')).json();
+  assert.equal(initial.associated, true); assert.equal(initial.device.name, 'PC stream');
+  assert.equal(initial.device.transmitting, false); assert.equal(initial.pendingCode, null);
+  assert.ok(initial.device.pairedAt); assert.ok(initial.device.active);
+  assert.equal(JSON.stringify(initial).includes(first.publisherToken), false);
+  assert.equal(JSON.stringify(initial).includes('tokenHash'), false);
+  assert.equal((await (await call('/api/connection', 'GET', jwt('broadcaster', '456'))).json()).associated, false);
+  const pending = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
+  assert.equal((await (await call('/api/connection')).json()).pendingCode.expiresAt, pending.expiresAt);
+  await call('/api/pair-code/cancel', 'POST', jwt(), {});
+  assert.equal((await call('/api/pair', 'POST', '', { code: pending.code })).status, 401);
+  assert.equal((await (await call('/api/connection')).json()).associated, true, 'Cancelling a code must preserve the current PC.');
+  ebs.channels.get('123').lastSeen = Date.now() - 20000;
+  assert.equal((await (await call('/api/connection')).json()).device.active, false);
+  assert.equal((await call('/api/publisher/heartbeat', 'POST', first.publisherToken)).status, 200);
+  const snapshot = { ...demoSnapshot(), source: 'game' };
+  assert.equal((await call('/api/publish', 'POST', first.publisherToken, snapshot)).status, 200);
+  assert.equal((await (await call('/api/connection')).json()).device.transmitting, true);
+  const second = await pair('Nouveau PC');
+  assert.equal((await call('/api/publisher/heartbeat', 'POST', first.publisherToken)).status, 401);
+  assert.equal((await call('/api/connection/revoke', 'POST', jwt(), { connectionId: initial.device.id })).status, 409, 'Stale UI must not revoke the replacement PC.');
+  assert.equal((await call('/api/connection/revoke', 'POST', jwt('broadcaster', '456'), { connectionId: second.connection.device.id })).status, 409);
+  await call('/api/publish', 'POST', second.publisherToken, snapshot);
+  const waiting = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
+  assert.equal((await call('/api/connection/revoke', 'POST', jwt('viewer'), { connectionId: second.connection.device.id })).status, 401);
+  assert.equal((await call('/api/connection/revoke', 'POST', jwt(), { connectionId: second.connection.device.id })).status, 200);
+  assert.equal((await call('/api/publish', 'POST', second.publisherToken, snapshot)).status, 401);
+  assert.equal((await call('/api/pair', 'POST', '', { code: waiting.code })).status, 401);
+  const state = await (await call('/api/state', 'GET', jwt('viewer'))).json();
+  assert.deepEqual(state.frames, []); assert.equal(state.revision, 0);
+  const persisted = JSON.parse(await readFile(dataPath)); assert.equal(persisted['123'].tokenHash, '');
+  ebs.server.closeAllConnections(); await new Promise(resolve => ebs.server.close(resolve));
+  const restarted = await start();
+  const result = await fetch(restarted.origin + '/api/connection', { headers: { Authorization: `Bearer ${jwt()}` } }).then(r => r.json());
+  assert.equal(result.associated, false, 'Revoked credentials must remain revoked after a restart.');
+});
+test('legacy credentials still work without re-pairing', async t => {
+  const { call } = await fixture(t, true);
+  const response = await call('/api/publisher/heartbeat', 'POST', 'legacy-fixture-token');
+  assert.equal(response.status, 200);
+  const connection = await response.json(); assert.equal(connection.associated, true); assert.equal(connection.device.pairedAt, null);
+  assert.equal((await call('/api/publisher/revoke', 'POST', 'legacy-fixture-token')).status, 200);
+  assert.equal((await call('/api/publisher/heartbeat', 'POST', 'legacy-fixture-token')).status, 401);
+});
+test('companion confirms connectivity without the game and unpair revokes the actual server access', async t => {
+  const { directory, ebs, jwt, call } = await fixture(t);
+  const runtime = join(directory, 'local'); const game = join(directory, 'game'); await mkdir(runtime); await mkdir(game);
+  await writeFile(join(game, 'SPAM.exe'), 'fixture'); await writeFile(join(runtime, 'companion.json'), JSON.stringify({ gamePath: game }));
+  const { server } = await createLocal({ runtimePath: runtime });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const { token } = await fetch(origin + '/api/local/bootstrap').then(r => r.json());
+  const local = (path, input) => fetch(origin + path, { method: input ? 'POST' : 'GET', headers: { 'x-local-token': token, 'Content-Type': 'application/json' }, body: input ? JSON.stringify(input) : undefined });
+  const code = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
+  assert.equal((await local('/api/local/pair', { backendUrl: ebs.origin, code: code.code, deviceName: 'PC fixture' })).status, 200);
+  let state;
+  for (let attempt = 0; attempt < 100; attempt++) { state = await (await local('/api/local/status')).json(); if (state.connection.state === 'active') break; await new Promise(resolve => setTimeout(resolve, 20)); }
+  assert.equal(state.connection.state, 'active'); assert.equal(state.connector, 'waiting'); assert.equal(state.connection.device.transmitting, false);
+  assert.equal(JSON.stringify(state).includes('publisherToken'), false);
+  const privateConfig = JSON.parse(await readFile(join(runtime, 'companion.json')));
+  assert.equal((await local('/api/local/unpair', {})).status, 200);
+  assert.equal((await call('/api/publisher/heartbeat', 'POST', privateConfig.publisherToken)).status, 401);
+  assert.equal((await (await local('/api/local/status')).json()).connection.state, 'unpaired');
+  const next = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
+  await local('/api/local/pair', { backendUrl: ebs.origin, code: next.code });
+  const association = await (await call('/api/connection')).json();
+  await call('/api/connection/revoke', 'POST', jwt(), { connectionId: association.device.id });
+  for (let attempt = 0; attempt < 140; attempt++) { state = await (await local('/api/local/status')).json(); if (state.connection.state === 'revoked') break; await new Promise(resolve => setTimeout(resolve, 50)); }
+  assert.equal(state.connection.state, 'revoked');
+  assert.equal((await local('/api/local/unpair', {})).status, 200, 'Already revoked credentials can be forgotten locally.');
+  const offlineCode = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
+  await local('/api/local/pair', { backendUrl: ebs.origin, code: offlineCode.code });
+  const before = await readFile(join(runtime, 'companion.json'), 'utf8');
+  ebs.server.closeAllConnections(); await new Promise(resolve => ebs.server.close(resolve));
+  const offlineRevoke = await local('/api/local/unpair', {});
+  assert.equal(offlineRevoke.status, 502);
+  assert.match((await offlineRevoke.json()).error, /n’a pas pu être révoqué/);
+  assert.equal(await readFile(join(runtime, 'companion.json'), 'utf8'), before, 'An unconfirmed revocation must preserve the local credentials for retry.');
+});
