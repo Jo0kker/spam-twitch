@@ -93,7 +93,7 @@ export async function createEbs(options = {}) {
         response.writeHead(302, { Location: 'https://github.com/Jo0kker/spam-twitch/releases/latest' + asset, 'Cache-Control': 'no-cache' });
         response.end(); return;
       }
-      if (request.method === 'GET' && ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html'].includes(url.pathname)) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
+      if (request.method === 'GET' && ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html', '/language.mjs', '/translate.mjs', '/en.json'].includes(url.pathname)) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
       if (request.method === 'POST' && url.pathname === '/api/pair-code') {
         const claims = verifyJwt(bearer(request), secret, { broadcaster: true });
         limiter.check(`issue:${claims.channel_id}`);

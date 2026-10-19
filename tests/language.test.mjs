@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {once} from 'node:events';
 import {normalizeLanguage, translate, translateMessage} from '../server/site/translate.mjs';
 import {createLocal} from '../server/local.mjs';
+import {createEbs} from '../server/ebs.mjs';
 const dictionary = JSON.parse(await readFile(new URL('../server/site/en.json', import.meta.url), 'utf8'));
 
 test('both languages preserve game text and user values while translating app messages', () => {
@@ -60,4 +61,15 @@ test('language preference survives restart without changing the pairing or game 
   assert.equal(status.config.language, 'en');
   assert.deepEqual(changes, ['fr', 'en', 'en']);
   for (const path of ['/language.mjs', '/translate.mjs', '/en.json']) assert.equal((await fetch(restarted + path)).status, 200);
+});
+
+test('public service serves translation resources without exposing other server files', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'spam-public-language-'));
+  const {server} = await createEbs({secret: Buffer.alloc(32, 1), clientId: 'fixture', dataPath: join(directory, 'channels.json'), disablePubSub: true});
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await rm(directory, {recursive: true, force: true});});
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  for (const path of ['/language.mjs', '/translate.mjs', '/en.json']) assert.equal((await fetch(origin + path)).status, 200, path);
+  assert.equal((await fetch(origin + '/en.json').then(response => response.json()))['Préparer SPAM'], 'Set up SPAM');
+  assert.equal((await fetch(origin + '/ebs.mjs')).status, 404);
 });
