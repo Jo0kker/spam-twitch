@@ -1,0 +1,15 @@
+.tools/
+.runtime/
+.artifacts/
+publication/
+*.pem
+*.pfx
+*.p12
+dist/
+downloads/
+*.log
+.env
+config.local.json
+node_modules/
+connector/bin/
+connector/obj/

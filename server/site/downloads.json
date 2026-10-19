@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "filename": "SPAM-Twitch-Setup-0.2.0.exe",
+  "bytes": 143101933,
+  "sha256": "4d087cecc1bf9429bbce683dc250d32b4a8c969169272cf3606d26662cbe9ff7",
+  "portable": {
+    "filename": "SPAM-Twitch-Companion-0.2.0.zip",
+    "bytes": 159355877,
+    "sha256": "3ab46a0f2216d0d6be96726224be3ee0228135d6ea2499b4571b88d203202f90"
+  }
+}

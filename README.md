@@ -1,0 +1,74 @@
+# SPAM Card Inspector
+
+Compagnon Windows et extension Twitch pour afficher les capacités des cartes visibles de SPAM au survol de la vidéo. Projet indépendant de Jo0kker, non affilié à Ticroco ou Twitch.
+
+## Installer
+
+Télécharger l’installateur sur [GitHub Releases](https://github.com/Jo0kker/spam-twitch/releases/latest). Windows 10/11 x64 est requis. Suivre l’assistant puis ouvrir SPAM Card Inspector depuis le menu Démarrer.
+
+1. Vérifier le dossier de SPAM et cliquer sur **Installer le connecteur**. Le connecteur est compilé avec les fichiers de votre jeu ; aucune bibliothèque propriétaire du jeu n’est distribuée.
+2. Fermer puis relancer SPAM après la première installation du module.
+3. Activer SPAM Card Inspector dans un emplacement Overlay Twitch. Générer un code dans la configuration de l’extension, puis le saisir dans le compagnon. Le serveur officiel est prérempli.
+4. Pour les lives suivants, ouvrir le compagnon et SPAM. L’association est conservée.
+
+**L’extension Twitch 0.1.0 est en cours d’examen : seuls les comptes de test autorisés peuvent l’utiliser actuellement.** Le téléchargement du compagnon ne vaut pas accès au catalogue Twitch.
+
+Les viewers n’installent rien. Ils survolent les cartes dans le lecteur Twitch sur ordinateur pour afficher une fiche compacte des capacités ; la fiche se ferme lorsque le pointeur quitte la carte.
+
+Fermer la fenêtre ou **Application → Quitter** arrête le compagnon et la transmission. Réduire la fenêtre laisse fonctionner l’application. Un second lancement remet la fenêtre existante au premier plan.
+
+## Mises à jour
+
+À partir de la version 0.2.0 installée, l’application recherche les publications stables au démarrage et toutes les quatre heures. Elle télécharge la nouvelle version, vérifie son manifeste signé et son SHA256, puis l’installe à la fermeture. Elle ne se relance pas après la fermeture. Le menu **Application** affiche l’état et permet une recherche manuelle. L’association Twitch est conservée. Une panne réseau ne bloque pas le compagnon.
+
+La version portable reste disponible dans les publications ; elle ne s’installe pas automatiquement. La version 0.1.0 nécessite une première installation manuelle de 0.2.0 pour obtenir l’updater. Le connecteur installé dans le jeu n’est pas remplacé automatiquement pendant une partie.
+
+## Confiance et code signing policy
+
+Le code du projet est sous [licence MIT](LICENSE). Les dépendances conservent leurs licences propres ; la licence du projet ne couvre ni SPAM ni ses illustrations. Voir [les notices tierces](THIRD-PARTY-NOTICES.md).
+
+Les installateurs sont construits par le [workflow GitHub Actions](.github/workflows/build.yml). Les publications comportent les SHA256 et des attestations de provenance vérifiables avec :
+
+```powershell
+gh attestation verify SPAM-Twitch-Setup-0.2.0.exe -R Jo0kker/spam-twitch
+```
+
+L’installateur n’a **pas encore de signature Authenticode reconnue par Windows**. GitHub Actions et la signature des manifestes ne remplacent pas un certificat Windows. Une candidature à SignPath Foundation est envisagée, sans garantie d’acceptation. Voir la [code signing policy](docs/CODE-SIGNING.md) et [SECURITY.md](SECURITY.md).
+
+## Construire sur Windows
+
+Node 24.19.0 et PowerShell Windows sont nécessaires. Les dépendances de build sont téléchargées depuis leurs éditeurs et contrôlées par SHA256 :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/Prepare-Build.ps1
+node --test tests/*.test.mjs
+node tools/package.mjs --skip-ebs
+node tests/desktop-lifecycle.mjs dist/SPAM-Twitch-Companion-0.2.0/SpamCardInspector.exe
+```
+
+Les artefacts sont dans `dist/`. Aucun fichier du jeu ni secret Twitch n’est nécessaire pour construire le compagnon. Le connecteur est compilé séparément sur le PC du joueur avec .NET Framework et les références du jeu.
+
+Créer un tag `vX.Y.Z` correspondant aux versions des deux `package.json` déclenche la publication. La clé privée de manifeste est un secret Actions ; elle n’est jamais incluse dans le client ou le dépôt. Consulter [la procédure de publication](docs/CODE-SIGNING.md).
+
+## Architecture et hébergement
+
+```text
+SPAM → connecteur BepInEx → état local des cartes visibles
+     → compagnon Windows → serveur EBS HTTPS → extension Twitch
+```
+
+Le connecteur lit les objets affichés et ne modifie pas les règles du jeu. La collection et un plateau de combat ont été testés avec transmission réelle et variation des PV. Le filtrage des cartes enfumées, retournées, mélangées ou mortes et la synchronisation précise OBS nécessitent encore des validations complémentaires. Aucune carte cachée ne doit être révélée.
+
+Le backend gère l’association par code, l’authentification Twitch, l’isolation des chaînes, un historique borné et les notifications PubSub. Le frontend Twitch est téléversé séparément : les mises à jour du compagnon ne remplacent pas la version soumise à Twitch.
+
+Pour développer : `node server/local.mjs`. Pour héberger : [Twitch](docs/TWITCH-SETUP.md) et [Dokploy](docs/DOKPLOY.md). Les secrets du serveur doivent rester dans ses variables d’environnement. Ne jamais publier `.runtime/companion.json`, `.env` ou des journaux privés.
+
+Pour désinstaller le connecteur, fermer SPAM puis lancer depuis le dossier du compagnon :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/Install-Connector.ps1 -GamePath "C:\chemin\vers\SPAM" -Uninstall
+```
+
+La désinstallation Windows retire le compagnon et conserve les données locales et le connecteur du jeu. Le retrait de l’association locale arrête les envois mais ne révoque pas la clé déjà stockée sur le serveur ; contacter le support pour sa suppression.
+
+Support : benjamin@codible.net · [Confidentialité](https://spam-twitch.codible.net/privacy.html) · [Conditions](https://spam-twitch.codible.net/terms.html)
