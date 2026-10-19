@@ -109,7 +109,7 @@ test('companion confirms connectivity without the game and unpair revokes the ac
   assert.equal((await call('/api/publisher/heartbeat', 'POST', privateConfig.publisherToken)).status, 401);
   assert.equal((await (await local('/api/local/status')).json()).connection.state, 'unpaired');
   const next = await (await call('/api/pair-code', 'POST', jwt(), {})).json();
-  await local('/api/local/pair', { backendUrl: ebs.origin, code: next.code });
+  await local('/api/local/pair', { backendUrl: ebs.origin, code: ` ${next.code.toLowerCase().slice(0, 4)} ${next.code.toLowerCase().slice(4)} ` });
   const association = await (await call('/api/connection')).json();
   await call('/api/connection/revoke', 'POST', jwt(), { connectionId: association.device.id });
   for (let attempt = 0; attempt < 140; attempt++) { state = await (await local('/api/local/status')).json(); if (state.connection.state === 'revoked') break; await new Promise(resolve => setTimeout(resolve, 50)); }
@@ -123,4 +123,28 @@ test('companion confirms connectivity without the game and unpair revokes the ac
   assert.equal(offlineRevoke.status, 502);
   assert.match((await offlineRevoke.json()).error, /n’a pas pu être révoqué/);
   assert.equal(await readFile(join(runtime, 'companion.json'), 'utf8'), before, 'An unconfirmed revocation must preserve the local credentials for retry.');
+});
+
+test('a fresh companion pairs with only a code using the public service automatically', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'spam-simple-pair-'));
+  const game = join(directory, 'game'); await mkdir(game); await writeFile(join(game, 'SPAM.exe'), 'fixture');
+  await writeFile(join(directory, 'companion.json'), JSON.stringify({ gamePath: game }));
+  let received;
+  const { server } = await createLocal({ runtimePath: directory, fetch: async (url, options) => {
+    assert.equal(new URL(url).origin, 'https://spam-twitch.codible.net');
+    if (url.endsWith('/api/pair')) {
+      received = JSON.parse(options.body);
+      return Response.json({ channelId: '123', publisherToken: 'fixture-token-that-is-at-least-32-characters', connection: { device: { name: 'PC de stream' } } });
+    }
+    return Response.json({ device: { name: 'PC de stream', active: true } });
+  } });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await rm(directory, { recursive: true, force: true }); });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const { token } = await fetch(origin + '/api/local/bootstrap').then(r => r.json());
+  const response = await fetch(origin + '/api/local/pair', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-local-token': token }, body: JSON.stringify({ code: ' abcd 1234 ef ' }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual(received, { code: 'ABCD1234EF', deviceName: 'PC de stream' });
+  const config = await response.json(); assert.equal(config.backendUrl, 'https://spam-twitch.codible.net');
+  assert.equal(config.channelId, '123');
 });

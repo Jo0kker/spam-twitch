@@ -63,9 +63,9 @@ Passer la version en **Hosted Test**. Ajouter le compte streamer et les comptes 
 ## 4. Associer le PC
 
 1. Le streamer installe et active l’extension dans le slot Overlay de sa chaîne.
-2. Il ouvre la configuration de l’extension et connecte l’adresse du backend HTTPS.
-3. Il clique sur « Générer un code d’association ».
-4. Dans le compagnon local, il saisit la même adresse de serveur et le code.
+2. Il ouvre la configuration de l’extension ; la connexion au service SPAM est automatique.
+3. Il clique sur « Générer mon code ».
+4. Dans le compagnon, il colle ce code et clique sur « Associer ». Aucune adresse de serveur n’est demandée. Le nom du PC est facultatif.
 5. Le code, valable cinq minutes et utilisable une seule fois, est échangé contre une clé de publication propre à cette chaîne.
 6. Le jeu tourne avec son module chargé ; le compagnon affiche « Transmission active ».
 

@@ -27,6 +27,7 @@ export async function discoverGame() {
   return '';
 }
 export async function createLocal(options = {}) {
+  const fetch = options.fetch || globalThis.fetch;
   const runtime = resolve(options.runtimePath || resolve(root, '.runtime'));
   const configPath = resolve(runtime, 'companion.json');
   await mkdir(runtime, { recursive: true });
@@ -144,8 +145,10 @@ export async function createLocal(options = {}) {
         return json(response, 200, publicConfig());
       }
       if (request.method === 'POST' && url.pathname === '/api/local/pair') {
-        const input = await body(request, 4096); const backend = baseUrl(input.backendUrl);
-        const result = await fetch(backend + '/api/pair', { method: 'POST', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: input.code, deviceName: String(input.deviceName || 'PC de stream').slice(0, 60) }) });
+        const input = await body(request, 4096); const backend = baseUrl(input.backendUrl || config.backendUrl || 'https://spam-twitch.codible.net');
+        let result;
+        try { result = await fetch(backend + '/api/pair', { method: 'POST', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: String(input.code || '').replace(/\s/g, '').toUpperCase(), deviceName: String(input.deviceName || 'PC de stream').slice(0, 60) }) }); }
+        catch { throw new HttpError(502, 'Connexion à SPAM indisponible. Vérifiez Internet puis réessayez.'); }
         const paired = await result.json();
         if (!result.ok) throw new HttpError(400, paired.error || 'Association refusée.');
         if (!/^\d+$/.test(paired.channelId) || typeof paired.publisherToken !== 'string' || paired.publisherToken.length < 32) throw new HttpError(400, 'Réponse du serveur invalide.');
