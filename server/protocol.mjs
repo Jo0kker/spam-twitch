@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { plainGameText } from '../extension/text.mjs';
 
 export const DEFAULT_LAYOUT = Object.freeze({ x: 0, y: 0, w: 1, h: 1, cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, delayOffsetMs: 0 });
 const text = (value, max = 160) => typeof value === 'string' ? value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, max) : '';
+const gameText = (value, max = 160) => text(plainGameText(value), max);
 const number = (value, min, max, fallback = min) => Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 export function validateLayout(input = {}) {
   const layout = { ...DEFAULT_LAYOUT };
@@ -21,12 +23,12 @@ export function sanitizeSnapshot(input) {
     const b = card.bounds;
     if (!b || !['x', 'y', 'w', 'h'].every(key => Number.isFinite(b[key])) || b.x < 0 || b.y < 0 || b.w <= 0 || b.h <= 0 || b.x + b.w > 1.002 || b.y + b.h > 1.002) throw new Error('Position de carte invalide.');
     return {
-      instanceId, cardId, name: text(card.name), description: text(card.description, 3000), element: text(card.element, 48),
+      instanceId, cardId, name: gameText(card.name), description: gameText(card.description, 3000), element: gameText(card.element, 48),
       hp: number(card.hp, -1000000, 1000000, 0), maxHp: number(card.maxHp, 0, 1000000, 0), income: number(card.income, 0, 1000000, 0),
       side: ['ally', 'opponent', 'collection'].includes(card.side) ? card.side : 'collection',
       order: number(card.order, 0, 10000, 0), bounds: { x: b.x, y: b.y, w: b.w, h: b.h },
       abilities: (Array.isArray(card.abilities) ? card.abilities : []).slice(0, 12).map(ability => ({
-        id: text(ability.id, 96), name: text(ability.name), description: text(ability.description, 3000),
+        id: text(ability.id, 96), name: gameText(ability.name), description: gameText(ability.description, 3000),
         kind: ability.kind === 'active' ? 'active' : 'passive', cooldown: number(ability.cooldown, 0, 10000, 0), maxCooldown: number(ability.maxCooldown, 0, 10000, 0)
       }))
     };

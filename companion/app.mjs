@@ -42,11 +42,21 @@ async function refresh() {
     $('#last-sync').textContent = status.lastFrameAt ? `Dernière lecture : ${new Date(status.lastFrameAt).toLocaleTimeString('fr-FR')}` : 'En attente de données';
     $('#unpair').hidden = !status.config.channelId;
     $('#unpair').textContent = connection.state === 'revoked' ? 'Effacer cette ancienne association' : 'Révoquer l’accès de ce PC';
-    $('#install-button').textContent = status.pluginInstalled ? 'Mettre à jour le connecteur' : 'Installer le connecteur'; $('#install-button').disabled = busy;
+    $('#install-button').textContent = status.pluginInstalled ? 'Actualiser le module SPAM' : 'Préparer SPAM'; $('#install-button').disabled = busy;
     if (document.activeElement !== $('#game-path') && !$('#game-path').value) $('#game-path').value = status.config.gamePath;
     if (document.activeElement !== $('#device-name') && !$('#device-name').value) $('#device-name').value = status.config.deviceName || 'PC de stream';
     if (status.error && status.error !== notifiedError) { notifiedError = status.error; toast(status.error, true); }
     if (!status.error) notifiedError = '';
+    const data = await api('/api/local/state');
+    const rows = (data.frames.at(-1)?.cards || []).map(card => {
+      const row = document.createElement('tr');
+      for (const value of [card.name, card.side === 'ally' ? 'Allié' : card.side === 'opponent' ? 'Adversaire' : 'Collection', card.abilities.map(ability => ability.name).join('\n')]) {
+        const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
+      }
+      return row;
+    });
+    if (!rows.length) { const row = document.createElement('tr'), cell = document.createElement('td'); cell.colSpan = 3; cell.textContent = 'Aucune donnée. Ouvrez la collection ou une partie dans SPAM.'; row.append(cell); rows.push(row); }
+    $('#cards-data').replaceChildren(...rows);
   } catch { $('#game-status').textContent = 'Application arrêtée'; $('#game-dot').classList.remove('online'); }
 }
 $('#demo-button').addEventListener('click', event => action(event.currentTarget, async () => { await api('/api/local/demo', 'POST', { enabled: !demo }); $('#preview').contentWindow.location.reload(); }));

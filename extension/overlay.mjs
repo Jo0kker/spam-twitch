@@ -1,4 +1,5 @@
 import { FrameBuffer, mapBounds } from './core.mjs';
+import { plainGameText } from './text.mjs';
 
 const hotspots = document.querySelector('#hotspots'), tooltip = document.querySelector('#tooltip');
 const notice = document.querySelector('#notice');
@@ -6,7 +7,7 @@ const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) &&
 const buffer = new FrameBuffer(); const nodes = new Map();
 let auth, backend = '', visible = true, latencyMs = 0, aspect = 16 / 9, frame, hoveredId = '';
 let polling = false, pendingFetch = false, timer, renderTimer, adjustmentMs = 0, lastFailure = '', needsHistory = true;
-const make = (tag, className, value) => { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = value; return node; };
+const make = (tag, className, value) => { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = plainGameText(value); return node; };
 const setNotice = value => { notice.textContent = value; notice.hidden = !value; };
 const hideTooltip = () => { tooltip.hidden = true; hoveredId = ''; };
 // Only the card keeps its details open; the tooltip never extends the hover area.
@@ -30,11 +31,22 @@ function showTooltip(card, node) {
     tooltip.append(abilities);
   }
   tooltip.hidden = false;
+  // Prefer a slightly wider sheet over a scrollbar. Keep every description visible.
+  const availableHeight = Math.max(1, innerHeight - 16), availableWidth = Math.max(1, innerWidth - 16);
+  tooltip.style.transform = '';
+  for (const width of [270, 340, 440, 560]) {
+    tooltip.style.width = `${Math.min(width, availableWidth)}px`;
+    tooltip.classList.toggle('columns', Math.min(width, availableWidth) >= 420 && card.abilities.length > 1);
+    if (tooltip.offsetHeight <= availableHeight || width === 560) break;
+  }
+  const scale = Math.min(1, availableHeight / tooltip.offsetHeight);
+  tooltip.style.transform = `scale(${scale})`;
+  const sheetWidth = tooltip.offsetWidth * scale, sheetHeight = tooltip.offsetHeight * scale;
   const rect = node.getBoundingClientRect();
   let left = rect.right + 8;
-  if (left + tooltip.offsetWidth > innerWidth - 8) left = rect.left - tooltip.offsetWidth - 8;
-  tooltip.style.left = `${Math.max(8, Math.min(innerWidth - tooltip.offsetWidth - 8, left))}px`;
-  tooltip.style.top = `${Math.max(8, Math.min(innerHeight - tooltip.offsetHeight - 8, rect.top))}px`;
+  if (left + sheetWidth > innerWidth - 8) left = rect.left - sheetWidth - 8;
+  tooltip.style.left = `${Math.max(8, Math.min(innerWidth - sheetWidth - 8, left))}px`;
+  tooltip.style.top = `${Math.max(8, Math.min(innerHeight - sheetHeight - 8, rect.top))}px`;
 }
 function render() {
   if (!visible) return;
