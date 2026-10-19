@@ -1,5 +1,11 @@
 # Déploiement du serveur SPAM Twitch dans Dokploy
 
+## Source Git actuelle
+
+Le serveur peut désormais être construit directement depuis `https://github.com/Jo0kker/spam-twitch.git`, branche `main`, Build Path `/`, Dockerfile `Dockerfile`, contexte `.`. Le dépôt est public et ne nécessite pas de clé SSH. Conserver les variables privées dans Dokploy, le port 8788, le domaine HTTPS et le volume `/data` existants.
+
+Les installateurs viennent de GitHub Releases. Le Dockerfile ne copie plus les gros téléchargements ; les anciens liens de téléchargement redirigent vers GitHub. Les procédures ZIP et de découpage ci-dessous concernent l’ancien hébergement des fichiers, et ne sont plus nécessaires pour le déploiement depuis Git.
+
 Le paquet `SPAM-Twitch-EBS-0.1.0.zip` peut être utilisé comme source **Application / Drag and Drop .zip** dans Dokploy. Il contient le Dockerfile à sa racine et n’inclut aucun secret ni donnée locale du streamer.
 
 ## Informations nécessaires
