@@ -8,6 +8,7 @@ import { bearer, tokenHash, secretToken, signJwt, verifyJwt } from './auth.mjs';
 import { body, json, HttpError, fail, RateLimiter, staticFile, downloadFile } from './http.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const publicSitePaths = ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html', '/language.mjs', '/translate.mjs', '/en.json'];
 const appVersion = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')).version;
 export async function createEbs(options = {}) {
   const clientId = options.clientId ?? process.env.TWITCH_EXTENSION_CLIENT_ID;
@@ -75,9 +76,15 @@ export async function createEbs(options = {}) {
   };
   const server = http.createServer(async (request, response) => {
     try {
+      const url = new URL(request.url, 'http://ebs.local');
+      const publicAsset = request.method === 'GET' && publicSitePaths.includes(url.pathname);
       const origin = request.headers.origin;
       const twitchOrigin = `https://${clientId.toLowerCase()}.ext-twitch.tv`;
-      if (origin) {
+      if (publicAsset) {
+        // ES module requests send Origin, including from our own public site.
+        // Only public site assets bypass the authenticated API's origin policy.
+        response.setHeader('Access-Control-Allow-Origin', '*');
+      } else if (origin) {
         const localOrigin = allowLocal && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
         if (origin !== twitchOrigin && !localOrigin) throw new HttpError(403, 'Origine non autorisée.');
         response.setHeader('Access-Control-Allow-Origin', origin);
@@ -86,14 +93,13 @@ export async function createEbs(options = {}) {
         response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
       }
       if (request.method === 'OPTIONS') { response.writeHead(204); response.end(); return; }
-      const url = new URL(request.url, 'http://ebs.local');
       if (request.method === 'GET' && url.pathname === '/health') return json(response, 200, { ok: true, service: 'SPAM Twitch EBS', version: appVersion, connectionManagement: true });
       if (['GET', 'HEAD'].includes(request.method) && ['/downloads.json', '/downloads/SPAM-Twitch-Setup-0.1.0.exe', '/downloads/SPAM-Twitch-Companion-0.1.0.zip'].includes(url.pathname)) {
         const asset = url.pathname.endsWith('.exe') ? '/download/SPAM-Twitch-Setup.exe' : url.pathname === '/downloads.json' ? '/download/update.json' : '';
         response.writeHead(302, { Location: 'https://github.com/Jo0kker/spam-twitch/releases/latest' + asset, 'Cache-Control': 'no-cache' });
         response.end(); return;
       }
-      if (request.method === 'GET' && ['/', '/index.html', '/style.css', '/privacy.html', '/terms.html', '/language.mjs', '/translate.mjs', '/en.json'].includes(url.pathname)) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
+      if (publicAsset) return await staticFile(response, resolve(root, 'server/site'), url.pathname === '/' ? '/index.html' : url.pathname);
       if (request.method === 'POST' && url.pathname === '/api/pair-code') {
         const claims = verifyJwt(bearer(request), secret, { broadcaster: true });
         limiter.check(`issue:${claims.channel_id}`);

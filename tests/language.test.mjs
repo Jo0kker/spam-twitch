@@ -70,6 +70,10 @@ test('public service serves translation resources without exposing other server 
   t.after(async () => {server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await rm(directory, {recursive: true, force: true});});
   const origin = `http://127.0.0.1:${server.address().port}`;
   for (const path of ['/language.mjs', '/translate.mjs', '/en.json']) assert.equal((await fetch(origin + path)).status, 200, path);
+  const browserModule = await fetch(origin + '/language.mjs', {headers: {Origin: 'https://spam-twitch.codible.net'}});
+  assert.equal(browserModule.status, 200);
+  assert.equal(browserModule.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.equal((await fetch(origin + '/api/connection', {headers: {Origin: 'https://spam-twitch.codible.net'}})).status, 403);
   assert.equal((await fetch(origin + '/en.json').then(response => response.json()))['Préparer SPAM'], 'Set up SPAM');
   assert.equal((await fetch(origin + '/ebs.mjs')).status, 404);
 });
