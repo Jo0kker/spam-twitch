@@ -1,5 +1,5 @@
-# SPAM Card Inspector 0.5.0
+# SPAM Card Inspector 0.5.1
 
-Le compagnon, les menus Windows, l’installateur et le site sont disponibles en français et en anglais. Un sélecteur FR / EN permet de changer de langue ; le choix est conservé. La langue initiale suit celle du système ou du navigateur.
+Le contact de support du site et du compagnon est désormais Discord : jo0kker, en français et en anglais.
 
-Les noms et descriptions des cartes restent dans la langue fournie par SPAM. L’extension Twitch en cours d’examen est inchangée.
+Les contacts des pages de confidentialité et des conditions d’utilisation sont conservés. Aucune modification de l’extension Twitch.

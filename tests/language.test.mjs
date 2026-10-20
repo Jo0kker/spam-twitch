@@ -22,7 +22,7 @@ test('both languages preserve game text and user values while translating app me
 });
 
 test('all static setup and legal page text has an English translation', async () => {
-  const unchanged = new Set(['SPAM Card Inspector', 'Version', 'FR / EN', 'Français', 'English', '0', 'Collection', 'SpamCardInspector.exe', 'README', 'GitHub Releases', 'benjamin@codible.net', 'S', 'Twitch ↗', 'Hetzner ↗', 'CNIL ↗']);
+  const unchanged = new Set(['SPAM Card Inspector', 'Version', 'FR / EN', 'Français', 'English', '0', 'Collection', 'SpamCardInspector.exe', 'README', 'GitHub Releases', 'benjamin@codible.net', 'jo0kker', 'S', 'Twitch ↗', 'Hetzner ↗', 'CNIL ↗']);
   for (const file of ['companion/index.html', 'server/site/index.html', 'server/site/privacy.html', 'server/site/terms.html']) {
     const html = await readFile(new URL('../' + file, import.meta.url), 'utf8');
     const missing = [...html.matchAll(/>([^<>]+)</g)].map(match => match[1].trim()).filter(text => text && !unchanged.has(text) && !Object.hasOwn(dictionary, text));

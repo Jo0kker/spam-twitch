@@ -221,5 +221,7 @@
   "Cookies et suivi": "Cookies and tracking",
   "Le code de l’extension ne met en place ni publicité ni mesure d’audience personnalisée. Il ne dépose pas de cookie propre au service. Twitch et votre navigateur peuvent utiliser leurs propres mécanismes de stockage, décrits dans leurs documents respectifs. Le compagnon conserve sa configuration et sa clé localement sur votre PC.": "The extension code does not implement advertising or personalized audience measurement. It does not set a service-specific cookie. Twitch and your browser may use their own storage mechanisms, described in their respective documents. The companion stores its configuration and key locally on your PC.",
   "Accueil": "Home",
-  "La langue choisie est mémorisée localement dans le navigateur et dans la configuration du compagnon. Elle n’est pas utilisée pour le suivi publicitaire.": "Your language choice is saved locally in your browser and in the companion configuration. It is not used for advertising tracking."
+  "La langue choisie est mémorisée localement dans le navigateur et dans la configuration du compagnon. Elle n’est pas utilisée pour le suivi publicitaire.": "Your language choice is saved locally in your browser and in the companion configuration. It is not used for advertising tracking.",
+  "Projet communautaire indépendant · Discord : jo0kker": "Independent community project · Discord: jo0kker",
+  "En cas d’erreur, contactez-moi sur Discord :": "If you encounter an error, contact me on Discord:"
 }
