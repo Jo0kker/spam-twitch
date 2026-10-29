@@ -5,6 +5,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { validatePresentation } from '../extension/presentation.mjs';
 import { Timeline, DEFAULT_LAYOUT, sanitizeSnapshot, validateLayout } from './protocol.mjs';
 import { secretToken } from './auth.mjs';
 import { body, json, HttpError, fail, staticFile } from './http.mjs';
@@ -35,6 +36,7 @@ export async function createLocal(options = {}) {
   try { config = { ...config, ...JSON.parse(await readFile(configPath, 'utf8')) }; } catch (error) { if (error.code !== 'ENOENT') throw error; }
   config.gamePath ||= await discoverGame();
   config.layout = validateLayout(config.layout);
+  config.presentation = validatePresentation(config.presentation);
   const timeline = new Timeline(); const localToken = secretToken();
   let demo = false; let demoSequence = 0; let lastGameRead = 0; let lastFileTime = 0;
   let state = null; let lastPublished = ''; let publishing = false; let lastPublishAt = 0;
@@ -43,7 +45,7 @@ export async function createLocal(options = {}) {
   let heartbeatRunning = false, lastHeartbeatAt = 0;
   let remoteConnection = { state: config.publisherToken ? 'checking' : 'unpaired', device: null, checkedAt: null, error: '' };
   const save = async () => { await writeFile(configPath + '.tmp', JSON.stringify(config, null, 2), { mode: 0o600 }); await rename(configPath + '.tmp', configPath); };
-  const publicConfig = () => ({ language: config.language, gamePath: config.gamePath, backendUrl: config.backendUrl, channelId: config.channelId, deviceName: config.deviceName, layout: config.layout });
+  const publicConfig = () => ({ presentation: config.presentation, language: config.language, gamePath: config.gamePath, backendUrl: config.backendUrl, channelId: config.channelId, deviceName: config.deviceName, layout: config.layout });
   const baseUrl = value => {
     let url;
     try { url = new URL(value); } catch { throw new HttpError(400, 'Adresse du serveur invalide.'); }
@@ -77,6 +79,7 @@ export async function createLocal(options = {}) {
         throw new Error(result.error || `Serveur HTTP ${response.status}`);
       }
       remoteConnection = { state: 'active', device: result.device, checkedAt: Date.now(), error: '' };
+      if (result.presentation) config.presentation = validatePresentation(result.presentation);
     } catch (error) {
       if (config.publisherToken === credential && remoteConnection.state !== 'revoked') remoteConnection = { ...remoteConnection, state: 'unreachable', error: error.message };
     } finally { heartbeatRunning = false; }
@@ -127,7 +130,7 @@ export async function createLocal(options = {}) {
       if (request.method !== 'GET' && request.headers['x-local-token'] !== localToken) throw new HttpError(403, 'Recharge la page locale pour continuer.');
       if (request.method === 'GET' && url.pathname === '/api/local/bootstrap') return json(response, 200, { token: localToken, config: publicConfig(), status });
       if (request.method === 'GET' && url.pathname === '/api/local/status') return json(response, 200, { ...status, version: options.version || 'développement', demo, connection: remoteConnection, config: publicConfig(), pluginInstalled: !!config.gamePath && await stat(join(config.gamePath, 'BepInEx/plugins/SpamTwitchConnector/SpamTwitchConnector.dll')).then(() => true, () => false) });
-      if (request.method === 'GET' && url.pathname === '/api/local/state') return json(response, 200, { ...timeline.read(Number(url.searchParams.get('after')) || 0, 0), layout: config.layout, online: status.connector === 'connected' || demo });
+      if (request.method === 'GET' && url.pathname === '/api/local/state') return json(response, 200, { ...timeline.read(Number(url.searchParams.get('after')) || 0, 0), presentation: config.presentation, layout: config.layout, online: status.connector === 'connected' || demo });
       if (request.method === 'POST' && url.pathname === '/api/local/demo') {
         const input = await body(request, 1024); demo = input.enabled === true; state = null; lastGameRead = 0; lastFileTime = 0;
         // A future-dated old frame must not survive a source change.
@@ -141,6 +144,10 @@ export async function createLocal(options = {}) {
           config.gamePath = input.gamePath; lastFileTime = 0;
         }
         if (['fr', 'en'].includes(input.language)) { config.language = input.language; options.onLanguageChange?.(config.language); }
+        if (input.presentation) {
+          try { config.presentation = validatePresentation(input.presentation, true); }
+          catch (error) { throw new HttpError(400, error.message); }
+        }
         if (input.layout) config.layout = validateLayout(input.layout);
         await save(); if (state) timeline.add(state, config.layout);
         return json(response, 200, publicConfig());

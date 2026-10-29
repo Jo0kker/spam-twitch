@@ -5,6 +5,7 @@ export const DEFAULT_LAYOUT = Object.freeze({ x: 0, y: 0, w: 1, h: 1, cropLeft: 
 const text = (value, max = 160) => typeof value === 'string' ? value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, max) : '';
 const gameText = (value, max = 160) => text(plainGameText(value), max);
 const number = (value, min, max, fallback = min) => Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+const optionalNumber = (value, min, max) => Number.isFinite(value) ? number(value, min, max) : undefined;
 export function validateLayout(input = {}) {
   const layout = { ...DEFAULT_LAYOUT };
   for (const key of ['x', 'y', 'w', 'h', 'cropLeft', 'cropTop', 'cropRight', 'cropBottom']) layout[key] = number(input[key], 0, 1, layout[key]);
@@ -27,9 +28,18 @@ export function sanitizeSnapshot(input) {
       hp: number(card.hp, -1000000, 1000000, 0), maxHp: number(card.maxHp, 0, 1000000, 0), income: number(card.income, 0, 1000000, 0),
       side: ['ally', 'opponent', 'collection'].includes(card.side) ? card.side : 'collection',
       order: number(card.order, 0, 10000, 0), bounds: { x: b.x, y: b.y, w: b.w, h: b.h },
+      ...(card.details && typeof card.details === 'object' ? {details: {
+        rarity: gameText(card.details.rarity, 80), species: gameText(card.details.species, 120), region: gameText(card.details.region, 120),
+        resistances: Object.fromEntries(['fire', 'water', 'earth', 'nature', 'shadow', 'light']
+          .filter(key => Number.isFinite(card.details.resistances?.[key]))
+          .map(key => [key, number(card.details.resistances[key], -1000, 1000)]))
+      }} : {}),
       abilities: (Array.isArray(card.abilities) ? card.abilities : []).slice(0, 12).map(ability => ({
         id: text(ability.id, 96), name: gameText(ability.name), description: gameText(ability.description, 3000),
-        kind: ability.kind === 'active' ? 'active' : 'passive', cooldown: number(ability.cooldown, 0, 10000, 0), maxCooldown: number(ability.maxCooldown, 0, 10000, 0)
+        kind: ability.kind === 'active' ? 'active' : 'passive', cooldown: number(ability.cooldown, 0, 10000, 0), maxCooldown: number(ability.maxCooldown, 0, 10000, 0),
+        ...(Number.isFinite(ability.precision) ? {precision: optionalNumber(ability.precision, 0, 100)} : {}),
+        ...(Number.isFinite(ability.criticalChance) ? {criticalChance: optionalNumber(ability.criticalChance, 0, 100)} : {}),
+        ...(Number.isFinite(ability.criticalMultiplier) ? {criticalMultiplier: optionalNumber(ability.criticalMultiplier, 0, 100)} : {})
       }))
     };
   });

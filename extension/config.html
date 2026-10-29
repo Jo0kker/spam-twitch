@@ -1,10 +1,8 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Configurer SPAM</title><link rel="stylesheet" href="config.css"><script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script><script type="module" src="config.mjs"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Configurer SPAM</title><link rel="stylesheet" href="overlay.css"><link rel="stylesheet" href="config.css"><script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script><script type="module" src="config.mjs"></script></head>
 <body><main>
-<div class="eyebrow">SPAM · TWITCH COMPANION</div>
-<h1>Associez votre PC à Twitch.</h1>
-<p>Une seule association, puis lancez simplement SPAM et l’application pour vos prochains lives.</p>
+<header class="config-header"><div><div class="eyebrow">SPAM CARD INSPECTOR</div><h1>Votre overlay</h1></div><label>FR / EN<select id="config-language" aria-label="Language / Langue"><option value="fr">Français</option><option value="en">English</option></select></label></header><p>Affichage et connexion de votre chaîne.</p><section id="presentation-editor"><p>Chargement des réglages d’affichage…</p></section>
 <section><h2>1. Ouvrez l’application sur votre PC</h2><p>Installez SPAM Card Inspector et ouvrez-le. Si c’est déjà fait, passez à l’étape suivante.</p><a class="download" href="https://github.com/Jo0kker/spam-twitch/releases/latest/download/SPAM-Twitch-Setup.exe" target="_blank" rel="noopener noreferrer">Télécharger l’application Windows ↗</a></section>
 <section><h2>2. Copiez ce code dans l’application</h2><p>Cliquez sur le bouton, puis saisissez le code dans « Code d’association » sur votre PC.</p>
 <button id="pair" disabled>Générer mon code</button><button id="cancel-code" class="secondary" hidden>Annuler ce code</button><output id="code" hidden></output><small id="expiry"></small>

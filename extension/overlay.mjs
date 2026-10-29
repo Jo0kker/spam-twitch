@@ -1,5 +1,7 @@
 import { FrameBuffer, mapBounds } from './core.mjs';
 import { plainGameText } from './text.mjs';
+import {validatePresentation, panelGeometry} from './presentation.mjs';
+import {renderPanel, panelText} from './panel.mjs';
 
 const hotspots = document.querySelector('#hotspots'), tooltip = document.querySelector('#tooltip');
 const notice = document.querySelector('#notice');
@@ -10,43 +12,30 @@ let polling = false, pendingFetch = false, timer, renderTimer, adjustmentMs = 0,
 const make = (tag, className, value) => { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = plainGameText(value); return node; };
 const setNotice = value => { notice.textContent = value; notice.hidden = !value; };
 const hideTooltip = () => { tooltip.hidden = true; hoveredId = ''; };
-// Only the card keeps its details open; the tooltip never extends the hover area.
-document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); });
-document.addEventListener('pointerdown', event => { if (!event.target.closest('.hotspot')) hideTooltip(); });
+let settings = validatePresentation(), presentationSignature = '';
+// Hover closes immediately on leaving the card. Click mode is an explicit streamer choice.
+document.addEventListener('pointerdown', event => {
+  if (!event.target.closest('.hotspot') && !event.target.closest('#tooltip')) hideTooltip();
+});
 function showTooltip(card, node) {
   hoveredId = card.instanceId;
-  const signature = JSON.stringify(card);
+  const signature = JSON.stringify([card, settings]);
+  let view;
   if (tooltip.dataset.signature !== signature) {
-    tooltip.dataset.signature = signature; tooltip.replaceChildren();
-    const head = make('header', 'tooltip-head'); head.append(make('div', 'eyebrow', `${card.element || 'SPAM'} · ${card.side === 'opponent' ? 'Adversaire' : card.side === 'ally' ? 'Votre équipe' : 'Collection'}`), make('h1', '', card.name));
-    tooltip.append(head);
-    const abilities = make('section', 'abilities');
-    for (const ability of card.abilities) {
-      const row = make('article', 'ability'); const top = make('div', 'ability-top');
-      top.append(make('div', 'ability-kind', ability.kind === 'active' ? 'Capacité active' : 'Effet passif'));
-      if (ability.kind === 'active') top.append(make('span', 'cooldown', `↻ ${ability.cooldown} / ${ability.maxCooldown}`));
-      row.append(top, make('h2', '', ability.name), make('p', '', ability.description)); abilities.append(row);
-    }
-    if (!card.abilities.length) abilities.append(make('p', 'ability', 'Aucune capacité affichée sur cette carte.'));
-    tooltip.append(abilities);
+    tooltip.dataset.signature = signature;
+    view = renderPanel(tooltip, card, settings, hideTooltip);
   }
   tooltip.hidden = false;
-  // Prefer a slightly wider sheet over a scrollbar. Keep every description visible.
-  const availableHeight = Math.max(1, innerHeight - 16), availableWidth = Math.max(1, innerWidth - 16);
-  tooltip.style.transform = '';
-  for (const width of [270, 340, 440, 560]) {
-    tooltip.style.width = `${Math.min(width, availableWidth)}px`;
-    tooltip.classList.toggle('columns', Math.min(width, availableWidth) >= 420 && card.abilities.length > 1);
-    if (tooltip.offsetHeight <= availableHeight || width === 560) break;
+  const geometry = panelGeometry(settings, innerWidth, innerHeight);
+  Object.assign(tooltip.style, {width: `${geometry.width}px`, height: `${geometry.height}px`, top: `${geometry.top}px`, left: `${geometry.left}px`});
+  tooltip.classList.toggle('compact', geometry.height < 620);
+  const body = view?.body || tooltip.querySelector('.detail-body');
+  if (body) {
+    const overflow = body.scrollHeight > body.clientHeight + 2;
+    tooltip.classList.toggle('has-overflow', overflow);
+    const footer = tooltip.querySelector('.detail-footer');
+    if (settings.activation === 'hover') footer.textContent = panelText(overflow ? 'Fiche longue : faites défiler sur la carte.' : 'Survolez une autre carte pour changer de fiche.', tooltip.lang);
   }
-  const scale = Math.min(1, availableHeight / tooltip.offsetHeight);
-  tooltip.style.transform = `scale(${scale})`;
-  const sheetWidth = tooltip.offsetWidth * scale, sheetHeight = tooltip.offsetHeight * scale;
-  const rect = node.getBoundingClientRect();
-  let left = rect.right + 8;
-  if (left + sheetWidth > innerWidth - 8) left = rect.left - sheetWidth - 8;
-  tooltip.style.left = `${Math.max(8, Math.min(innerWidth - sheetWidth - 8, left))}px`;
-  tooltip.style.top = `${Math.max(8, Math.min(innerHeight - sheetHeight - 8, rect.top))}px`;
 }
 function render() {
   if (!visible) return;
@@ -62,17 +51,23 @@ function render() {
     if (!entry) {
       const button = make('button', 'hotspot'); button.type = 'button';
       entry = { button, card }; nodes.set(card.instanceId, entry);
-      button.addEventListener('pointerenter', () => showTooltip(entry.card, button));
-      button.addEventListener('focus', () => showTooltip(entry.card, button));
-      button.addEventListener('pointerleave', hideTooltip);
-      button.addEventListener('blur', hideTooltip);
+      button.addEventListener('pointerenter', () => { if(settings.activation === 'hover') showTooltip(entry.card, button); });
+      button.addEventListener('focus', () => { if(settings.activation === 'hover') showTooltip(entry.card, button); });
+      button.addEventListener('pointerleave', () => { if(settings.activation === 'hover') hideTooltip(); });
+      button.addEventListener('blur', () => { if(settings.activation === 'hover') hideTooltip(); });
       button.addEventListener('click', () => showTooltip(entry.card, button));
+      button.addEventListener('wheel', event => {
+        if(settings.activation !== 'hover' || tooltip.hidden || hoveredId !== entry.card.instanceId) return;
+        const scroll = tooltip.querySelector('.detail-body');
+        if(scroll && scroll.scrollHeight > scroll.clientHeight) { scroll.scrollTop += event.deltaY; event.preventDefault(); }
+      }, {passive:false});
       if (local) { entry.mock = make('div', 'mock-card'); hotspots.append(entry.mock); }
       hotspots.append(button);
     }
     entry.card = card;
-    entry.button.setAttribute('aria-label', `${card.name}, ${card.hp} points de vie. Afficher les détails.`);
+    entry.button.setAttribute('aria-label', `${card.name}. ${settings.language === 'en' ? 'Show card details.' : 'Afficher les détails.'}`);
     entry.button.hidden = !mapped;
+    entry.button.classList.toggle('highlighted', settings.highlight && hoveredId === card.instanceId && !tooltip.hidden);
     if (!mapped) { if (entry.mock) entry.mock.hidden = true; continue; }
     const style = { left: `${mapped.x}px`, top: `${mapped.y}px`, width: `${mapped.w}px`, height: `${mapped.h}px`, zIndex: String(10 + (card.order || 0)) };
     Object.assign(entry.button.style, style);
@@ -96,6 +91,11 @@ async function fetchState() {
     const response = await fetch(`${path}?after=${historyRequested ? 0 : buffer.revision}&delayMs=${Math.max(0, latencyMs + adjustmentMs)}`, { headers: auth ? { Authorization: `Bearer ${auth.token}` } : {}, signal: AbortSignal.timeout(8000), cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json(); buffer.ingest(data, started, Date.now());
+    const nextSettings = validatePresentation(data.presentation), nextSignature = JSON.stringify(nextSettings);
+    if (nextSignature !== presentationSignature) {
+      if (nextSettings.activation !== settings.activation) hideTooltip();
+      settings = nextSettings; presentationSignature = nextSignature;
+    }
     const nextAdjustment = data.layout?.delayOffsetMs || 0;
     if (Math.abs(nextAdjustment - adjustmentMs) > 500) { needsHistory = true; pendingFetch = true; }
     adjustmentMs = nextAdjustment;
@@ -105,9 +105,9 @@ async function fetchState() {
 }
 function start() { clearInterval(timer); clearInterval(renderTimer); if (visible) { void fetchState(); timer = setInterval(fetchState, local ? 700 : 5000); renderTimer = setInterval(render, 150); } }
 async function backendConfig() {
-  let config = {};
-  try { config = await fetch('runtime-config.json').then(response => response.json()); } catch {}
-  for (const segment of ['global', 'broadcaster']) { try { config = { ...config, ...JSON.parse(window.Twitch?.ext?.configuration?.[segment]?.content || '{}') }; } catch {} }
+  let config = {backendUrl:'https://spam-twitch.codible.net'};
+  try { const supplied = await fetch('runtime-config.json').then(response => response.json()); if(supplied.backendUrl) config.backendUrl=supplied.backendUrl; } catch {}
+  for (const segment of ['global', 'broadcaster']) { try { const supplied=JSON.parse(window.Twitch?.ext?.configuration?.[segment]?.content || '{}'); if(supplied.backendUrl) config.backendUrl=supplied.backendUrl; } catch {} }
   try { const url = new URL(config.backendUrl); if (url.protocol === 'https:' || (local && url.hostname === '127.0.0.1')) backend = url.origin; } catch { backend = ''; }
   if (!backend && !local) setNotice('Le serveur SPAM n’est pas encore configuré.');
 }

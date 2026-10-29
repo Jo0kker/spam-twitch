@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
+import { validatePresentation } from '../extension/presentation.mjs';
 import { Timeline, DEFAULT_LAYOUT, validateLayout, sanitizeSnapshot } from './protocol.mjs';
 import { bearer, tokenHash, secretToken, signJwt, verifyJwt } from './auth.mjs';
 import { body, json, HttpError, fail, RateLimiter, staticFile, downloadFile } from './http.mjs';
@@ -21,10 +22,10 @@ export async function createEbs(options = {}) {
   const channels = new Map(); const pairing = new Map();
   let persisted = {};
   try { persisted = JSON.parse(await readFile(dataPath, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-  for (const [id, entry] of Object.entries(persisted)) if (/^\d+$/.test(id)) channels.set(id, { tokenHash: entry.tokenHash, connectionId: entry.connectionId || randomBytes(12).toString('hex'), deviceName: entry.deviceName || 'PC de stream', pairedAt: entry.pairedAt || null, layout: validateLayout(entry.layout), timeline: new Timeline(), lastSeen: 0, lastPublish: 0, lastNotify: 0, online: false });
+  for (const [id, entry] of Object.entries(persisted)) if (/^\d+$/.test(id)) channels.set(id, { tokenHash: entry.tokenHash, connectionId: entry.connectionId || randomBytes(12).toString('hex'), deviceName: entry.deviceName || 'PC de stream', pairedAt: entry.pairedAt || null, layout: validateLayout(entry.layout), presentation: validatePresentation(entry.presentation), timeline: new Timeline(), lastSeen: 0, lastPublish: 0, lastNotify: 0, online: false });
   let persistChain = Promise.resolve();
   const persist = () => {
-    const value = JSON.stringify(Object.fromEntries([...channels].map(([id, ch]) => [id, { tokenHash: ch.tokenHash, connectionId: ch.connectionId, deviceName: ch.deviceName, pairedAt: ch.pairedAt, layout: ch.layout }])));
+    const value = JSON.stringify(Object.fromEntries([...channels].map(([id, ch]) => [id, { tokenHash: ch.tokenHash, connectionId: ch.connectionId, deviceName: ch.deviceName, pairedAt: ch.pairedAt, layout: ch.layout, presentation: ch.presentation }])));
     persistChain = persistChain.catch(() => {}).then(async () => { await mkdir(dirname(dataPath), { recursive: true }); await writeFile(dataPath + '.tmp', value, { mode: 0o600 }); await rename(dataPath + '.tmp', dataPath); });
     return persistChain;
   };
@@ -33,7 +34,7 @@ export async function createEbs(options = {}) {
   const getChannel = id => {
     if (!channels.has(id)) {
       if (channels.size >= 1000) throw new HttpError(503, 'Capacité du service atteinte.');
-      channels.set(id, { tokenHash: '', layout: { ...DEFAULT_LAYOUT }, timeline: new Timeline(), lastPublish: 0, lastNotify: 0, online: false });
+      channels.set(id, { tokenHash: '', layout: { ...DEFAULT_LAYOUT }, presentation: validatePresentation(), timeline: new Timeline(), lastPublish: 0, lastNotify: 0, online: false });
     }
     return channels.get(id);
   };
@@ -126,7 +127,7 @@ export async function createEbs(options = {}) {
       if (['/api/publisher/heartbeat', '/api/publisher/revoke'].includes(url.pathname) && request.method === 'POST') {
         const { id, channel } = publisher(request);
         if (url.pathname.endsWith('/revoke')) { await revoke(id, channel); return json(response, 200, { ok: true }); }
-        channel.lastSeen = Date.now(); return json(response, 200, connection(id, channel));
+        channel.lastSeen = Date.now(); return json(response, 200, {...connection(id, channel), presentation: validatePresentation(channel.presentation)});
       }
       if (request.method === 'POST' && url.pathname === '/api/pair') {
         limiter.check(`redeem:${request.socket.remoteAddress}`); pairGlobalLimiter.check('all');
@@ -160,7 +161,17 @@ export async function createEbs(options = {}) {
         const claims = verifyJwt(bearer(request), secret);
         const channel = getChannel(claims.channel_id);
         const result = channel.timeline.read(Number(url.searchParams.get('after')) || 0, Number(url.searchParams.get('delayMs')) || 0);
-        return json(response, 200, { ...result, layout: channel.layout, online: channel.online && Date.now() - channel.lastPublish < 10000 });
+        return json(response, 200, { ...result, presentation: validatePresentation(channel.presentation), layout: channel.layout, online: channel.online && Date.now() - channel.lastPublish < 10000 });
+      }
+      if (url.pathname === '/api/presentation' && ['GET', 'PUT'].includes(request.method)) {
+        const claims = verifyJwt(bearer(request), secret, { broadcaster: true });
+        const channel = getChannel(claims.channel_id);
+        if (request.method === 'PUT') {
+          channel.presentation = validatePresentation(await body(request, 4096), true);
+          await persist();
+          channel.lastNotify = 0; void notify(claims.channel_id, channel);
+        }
+        return json(response, 200, { presentation: validatePresentation(channel.presentation) });
       }
       if (url.pathname === '/api/layout' && ['GET', 'PUT'].includes(request.method)) {
         const claims = verifyJwt(bearer(request), secret, { broadcaster: true });

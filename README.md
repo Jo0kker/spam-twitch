@@ -92,3 +92,13 @@ La connexion au service SPAM est automatique. Dans Twitch, cliquer sur **Génér
 ### Interface 0.4.0
 
 Le compagnon affiche les étapes de préparation de SPAM et d’association Twitch, les états du jeu et de transmission, puis les cartes et talents détectés. L’aperçu et la démo sont repliés par défaut. Le site fournit directement les téléchargements, les étapes et le dépannage. Les marqueurs TextMeshPro sont nettoyés dans les descriptions, et l’overlay de test adapte ses fiches à la place disponible sans barre de défilement.
+
+## Affichage des cartes (Twitch 0.2.0)
+
+Dans la configuration Twitch de la version 0.2.0, la section **Affichage pour vos viewers** propose un aperçu et des réglages enregistrés pour la chaîne. Le mode complet affiche les statistiques de compétences et résistances reçues du jeu ; le mode simple conserve les compétences et passifs. Les PV, revenus et textes d’histoire sont optionnels.
+
+Le volet s’ouvre au survol par défaut et se ferme en quittant la carte. Le streamer peut choisir l’ouverture au clic pour laisser les viewers lire et faire défiler la fiche. Sur un petit lecteur, une fiche longue en mode survol se fait défiler en gardant le pointeur sur la carte.
+
+Les résistances et probabilités nécessitent le connecteur **0.1.4** : cliquer sur **Actualiser le module SPAM** dans le compagnon, puis redémarrer SPAM. Les images du jeu ne sont pas redistribuées. Les noms et descriptions restent dans la langue fournie par SPAM ; les libellés de l’interface sont disponibles en FR/EN.
+
+Les fichiers de cette nouvelle interface sont distincts de la soumission Twitch 0.1.1. Tester une nouvelle version hébergée ne remplace pas la version en cours d’examen.

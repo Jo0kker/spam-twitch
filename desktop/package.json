@@ -1,6 +1,6 @@
 {
   "name": "spam-card-inspector-desktop",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "main": "main.cjs",
   "private": true
 }

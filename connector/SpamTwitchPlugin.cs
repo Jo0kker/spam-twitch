@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 
 namespace SpamTwitch
 {
-    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.3")]
+    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.4")]
     [BepInProcess("SPAM.exe")]
     public sealed class SpamTwitchPlugin : BaseUnityPlugin
     {
@@ -44,6 +44,8 @@ namespace SpamTwitch
             Directory.CreateDirectory(outputDirectory.Value);
             Logger.LogInfo("SPAM Twitch connector ready. Output: " + outputDirectory.Value);
         }
+
+        private static float ValueOr(Func<float> read, float fallback) { try { return read(); } catch { return fallback; } }
 
         private void Update()
         {
@@ -104,7 +106,10 @@ namespace SpamTwitch
                             abilities.Add(new {
                                 id = row.Id, name = Plain(active.GetTitle()), kind = "active",
                                 description = Plain(runtime != null ? active.GetDescWithDynamicValue(runtime) : active.GetDescWithValue()),
-                                cooldown = row.CurrentCooldown, maxCooldown = row.MaxCooldown
+                                cooldown = row.CurrentCooldown, maxCooldown = row.MaxCooldown,
+                                precision = 100f - (runtime != null ? ValueOr(() => runtime.GetChanceOfMiss(active), active.chanceOfMiss) : active.chanceOfMiss),
+                                criticalChance = active.CanCrit ? (float?)(runtime != null ? ValueOr(() => runtime.GetChanceOfCritick(active), active.chanceOfCrit) : active.chanceOfCrit) : null,
+                                criticalMultiplier = active.CanCrit ? (float?)(runtime != null ? ValueOr(() => runtime.GetCritickDamageRatio(active), active.CritickDamageRatio) : active.CritickDamageRatio) : null
                             });
                         }
                         else if (passive)
@@ -119,6 +124,18 @@ namespace SpamTwitch
                         instanceId = controller.GetInstanceID().ToString(), cardId = data.Id,
                         name = Plain(data.Name), description = Plain(data.Description),
                         element = data.Element ? Plain(data.Element.Name) : "",
+                        details = new {
+                            rarity = data.Rarity ? Plain(data.Rarity.Name) : "",
+                            species = Plain(data.Species), region = Plain(data.Region),
+                            resistances = new {
+                                fire = runtime != null ? ValueOr(() => runtime.GetResistance(Spam.Data.ElementData.Fire), data.FireResistance) : data.FireResistance,
+                                water = runtime != null ? ValueOr(() => runtime.GetResistance(Spam.Data.ElementData.Water), data.WaterResistance) : data.WaterResistance,
+                                earth = runtime != null ? ValueOr(() => runtime.GetResistance(Spam.Data.ElementData.Earth), data.EarthResistance) : data.EarthResistance,
+                                nature = runtime != null ? ValueOr(() => runtime.GetResistance(Spam.Data.ElementData.Nature), data.NatureResistance) : data.NatureResistance,
+                                shadow = runtime != null ? ValueOr(() => runtime.GetResistance(Spam.Data.ElementData.Shadow), data.ShadowResistance) : data.ShadowResistance,
+                                light = runtime != null ? ValueOr(() => runtime.GetResistance(Spam.Data.ElementData.Light), data.LightResistance) : data.LightResistance
+                            }
+                        },
                         hp = runtime != null ? runtime.GetHP() : data.Hp,
                         maxHp = runtime != null ? runtime.GetHPMax() : data.Hp,
                         // Match UpdateGameGraphics: GetCoinsGeneration uses a legacy data field

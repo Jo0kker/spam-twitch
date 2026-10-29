@@ -223,5 +223,6 @@
   "Accueil": "Home",
   "La langue choisie est mémorisée localement dans le navigateur et dans la configuration du compagnon. Elle n’est pas utilisée pour le suivi publicitaire.": "Your language choice is saved locally in your browser and in the companion configuration. It is not used for advertising tracking.",
   "Projet communautaire indépendant · Discord : jo0kker": "Independent community project · Discord: jo0kker",
-  "En cas d’erreur, contactez-moi sur Discord :": "If you encounter an error, contact me on Discord:"
+  "En cas d’erreur, contactez-moi sur Discord :": "If you encounter an error, contact me on Discord:",
+  "Dans la configuration Twitch, le streamer peut choisir un volet simple ou complet, son placement, ses couleurs et les informations visibles.": "In the Twitch settings, streamers can choose simple or complete details, panel placement, colors and visible information."
 }
