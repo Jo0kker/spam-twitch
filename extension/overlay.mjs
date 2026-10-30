@@ -31,6 +31,8 @@ function showTooltip(card, node) {
   tooltip.classList.toggle('compact', geometry.height < 620);
   const body = view?.body || tooltip.querySelector('.detail-body');
   if (body) {
+    // Measure without the hint first, so it cannot cause its own overflow.
+    tooltip.classList.remove('has-overflow');
     const overflow = body.scrollHeight > body.clientHeight + 2;
     tooltip.classList.toggle('has-overflow', overflow);
     const footer = tooltip.querySelector('.detail-footer');

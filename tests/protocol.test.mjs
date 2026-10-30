@@ -53,7 +53,8 @@ test('talent rows survive the existing viewer protocol and disappear with the dr
   const buffer = new FrameBuffer(); buffer.ingest(timeline.read(0, 0, 10000), 10000, 10000);
   const received = buffer.select(10000, 0).cards.find(card => card.instanceId === talent.instanceId);
   assert.equal(received.name, talent.name);
-  assert.deepEqual(received.abilities, talent.abilities);
+  assert.deepEqual(received.abilities.map(({descriptionTokens,...ability})=>ability), talent.abilities);
+  assert.ok(received.abilities[0].descriptionTokens.some(token=>token.tone==='earth'));
   const mapped = mapBounds(received.bounds, DEFAULT_LAYOUT, 2000, 1125);
   for (const [key, expected] of Object.entries({ x: 540, y: 978.75, w: 340, h: 45 })) assert.ok(Math.abs(mapped[key] - expected) < 1e-8);
   const combat = demoSnapshot(2); combat.cards = combat.cards.filter(card => !card.instanceId.startsWith('talent:'));

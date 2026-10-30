@@ -17,8 +17,8 @@ test('presentation settings allow only implemented options and keep panels insid
   assert.throws(()=>validatePresentation({showStats:'false'},true));
   assert.equal(validatePresentation({opacity:500}).opacity,100);
   assert.equal(elementKey('Lumière'),'light');assert.equal(elementKey('Shadow'),'shadow');
-  for(const [width,height] of [[320,180],[640,360],[960,540],[1920,1080],[500,900]])for(const side of ['left','right'])for(const size of ['narrow','standard','wide']){
-    const panel=panelGeometry({...DEFAULT_PRESENTATION,side,width:size},width,height);
+  for(const [width,height] of [[320,180],[640,360],[960,540],[1920,1080],[500,900]])for(const panelStyle of ['sidebar','card'])for(const side of ['left','right'])for(const size of ['narrow','standard','wide']){
+    const panel=panelGeometry({...DEFAULT_PRESENTATION,panelStyle,side,width:size},width,height);
     assert.ok(panel.left>=0 && panel.left+panel.width<=width);
     assert.ok(panel.top>=0 && panel.top+panel.height<=height);
   }
@@ -44,7 +44,7 @@ test('streamer presentation persists, reaches viewers without a new game frame, 
   const call=(path,method='GET',role='broadcaster',value,channel='123')=>fetch(origin+path,{method,headers:{Authorization:`Bearer ${token(role,channel)}`,'Content-Type':'application/json'},body:value===undefined?undefined:JSON.stringify(value)});
   assert.equal((await call('/api/presentation','PUT','viewer',{side:'left'})).status,401);
   assert.equal((await call('/api/presentation','PUT','broadcaster',{activation:'invalid'})).status,400);
-  const settings={...DEFAULT_PRESENTATION,side:'left',mode:'simple',showStats:true,activation:'click',opacity:87};
+  const settings={...DEFAULT_PRESENTATION,panelStyle:'card',side:'left',mode:'simple',showStats:true,activation:'click',opacity:87};
   assert.equal((await call('/api/presentation','PUT','broadcaster',settings)).status,200);
   const issued=await call('/api/pair-code','POST','broadcaster',{}).then(response=>response.json());
   const paired=await fetch(origin+'/api/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:issued.code})}).then(response=>response.json());
@@ -57,3 +57,14 @@ test('streamer presentation persists, reaches viewers without a new game frame, 
   const legacy=await call('/api/layout').then(response=>response.json());assert.equal(legacy.layout.w,1);
 });
 
+
+test('full sidebar docks to the player edges while the compact card retains its inset',()=>{
+  for(const [width,height] of [[320,180],[640,360],[960,540],[1225,693],[1920,1080]])for(const side of ['right','left']){
+    const sidebar=panelGeometry({...DEFAULT_PRESENTATION,panelStyle:'sidebar',side},width,height);
+    assert.equal(sidebar.top,0);assert.equal(sidebar.height,height);
+    assert.equal(side==='right'?sidebar.left+sidebar.width:sidebar.left,side==='right'?width:0);
+    const card=panelGeometry({...DEFAULT_PRESENTATION,panelStyle:'card',side},width,height);
+    assert.ok(card.top>0);assert.ok(card.height<height);
+  }
+  assert.throws(()=>validatePresentation({panelStyle:'remote-html'},true));
+});

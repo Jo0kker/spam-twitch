@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { plainGameText } from '../extension/text.mjs';
+import { plainGameText, sanitizeGameTokens } from '../extension/text.mjs';
 
 export const DEFAULT_LAYOUT = Object.freeze({ x: 0, y: 0, w: 1, h: 1, cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, delayOffsetMs: 0 });
 const text = (value, max = 160) => typeof value === 'string' ? value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, max) : '';
@@ -29,6 +29,7 @@ export function sanitizeSnapshot(input) {
       side: ['ally', 'opponent', 'collection'].includes(card.side) ? card.side : 'collection',
       order: number(card.order, 0, 10000, 0), bounds: { x: b.x, y: b.y, w: b.w, h: b.h },
       ...(card.details && typeof card.details === 'object' ? {details: {
+        ...(card.side === 'collection' && Array.isArray(card.details.talents) ? {talents: card.details.talents.slice(0, 8).filter(talent=>talent && typeof talent==='object').map(talent => ({name:gameText(talent.name), description:gameText(talent.description,1500), descriptionTokens:sanitizeGameTokens(talent.descriptionTokens,talent.description)}))} : {}),
         rarity: gameText(card.details.rarity, 80), species: gameText(card.details.species, 120), region: gameText(card.details.region, 120),
         resistances: Object.fromEntries(['fire', 'water', 'earth', 'nature', 'shadow', 'light']
           .filter(key => Number.isFinite(card.details.resistances?.[key]))
@@ -36,6 +37,7 @@ export function sanitizeSnapshot(input) {
       }} : {}),
       abilities: (Array.isArray(card.abilities) ? card.abilities : []).slice(0, 12).map(ability => ({
         id: text(ability.id, 96), name: gameText(ability.name), description: gameText(ability.description, 3000),
+        descriptionTokens: sanitizeGameTokens(ability.descriptionTokens,ability.description),
         kind: ability.kind === 'active' ? 'active' : 'passive', cooldown: number(ability.cooldown, 0, 10000, 0), maxCooldown: number(ability.maxCooldown, 0, 10000, 0),
         ...(Number.isFinite(ability.precision) ? {precision: optionalNumber(ability.precision, 0, 100)} : {}),
         ...(Number.isFinite(ability.criticalChance) ? {criticalChance: optionalNumber(ability.criticalChance, 0, 100)} : {}),

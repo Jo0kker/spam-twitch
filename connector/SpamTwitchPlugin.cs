@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 
 namespace SpamTwitch
 {
-    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.4")]
+    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.5")]
     [BepInProcess("SPAM.exe")]
     public sealed class SpamTwitchPlugin : BaseUnityPlugin
     {
@@ -125,6 +125,8 @@ namespace SpamTwitch
                         name = Plain(data.Name), description = Plain(data.Description),
                         element = data.Element ? Plain(data.Element.Name) : "",
                         details = new {
+                            // Collection talents are a public catalogue, never hidden combat selections.
+                            talents = runtime == null && data.Talents != null ? data.Talents.Where(t => t).Take(8).Select(t => new { name = Plain(t.Name), description = Plain(t.GetDescWithValue()) }).ToArray() : null,
                             rarity = data.Rarity ? Plain(data.Rarity.Name) : "",
                             species = Plain(data.Species), region = Plain(data.Region),
                             resistances = new {
@@ -205,7 +207,7 @@ namespace SpamTwitch
                             (data.Talents != null && index - 1 < data.Talents.Count ? data.Talents[index - 1] : null);
                         if (!talent) continue;
                         var title = Plain(talent.Name);
-                        var description = Plain(talent.Description);
+                        var description = Plain(talent.GetDescWithValue());
                         if (String.IsNullOrEmpty(title)) continue;
                         var state = row.Value ? "Sélectionné" : (row.IsUnlocked ? "Disponible" : "Verrouillé");
                         // Reuse protocol v1 hover targets and passive descriptions. No Twitch asset update.

@@ -32,8 +32,13 @@ https://dev.twitch.tv/docs/extensions/reference/
 
 ## SPAM
 
-Le jeu, ses assemblies, illustrations et ressources ne sont pas distribués avec ce projet. Le connecteur référence les assemblies de l’installation locale lors de sa compilation et lit les cartes affichées au moment de son exécution. SPAM et ses contenus appartiennent à leurs ayants droit.
+Le jeu, ses assemblies et ses illustrations de cartes ne sont pas distribués avec ce projet. Les icônes d’interface et les filigranes élémentaires dans `extension/assets/game/` proviennent de SPAM et restent la propriété de leurs ayants droit ; elles ne sont pas couvertes par la licence MIT du code. Le connecteur référence les assemblies de l’installation locale lors de sa compilation et lit les cartes affichées au moment de son exécution. SPAM et ses contenus appartiennent à leurs ayants droit.
 
-## �dition des ressources Windows (build uniquement)
+## Édition des ressources Windows (build uniquement)
 
-rcedit 2.0.0, sous licence MIT : https://github.com/electron/rcedit/tree/v2.0.0. Utilis� pour int�grer l�ic�ne au programme, sans �tre distribu� avec le compagnon. Licence : `third-party/RCEDIT-LICENSE.txt` dans les sources.
+rcedit 2.0.0, sous licence MIT : https://github.com/electron/rcedit/tree/v2.0.0. Utilisé pour intégrer l’icône au programme, sans être distribué avec le compagnon. Licence : `third-party/RCEDIT-LICENSE.txt` dans les sources.
+
+
+## Poppins
+
+Poppins, Indian Type Foundry, SIL Open Font License 1.1. Police et licence dans `extension/assets/fonts/`. Source : https://github.com/google/fonts/tree/main/ofl/poppins.
