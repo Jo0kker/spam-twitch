@@ -99,6 +99,8 @@ Dans la configuration Twitch de la version 0.2.0, la section **Affichage pour vo
 
 Le volet s’ouvre au survol par défaut et se ferme en quittant la carte. Le streamer peut choisir l’ouverture au clic pour laisser les viewers lire et faire défiler la fiche. Sur un petit lecteur, une fiche longue en mode survol se fait défiler en gardant le pointeur sur la carte.
 
-Les résistances, probabilités et talents disponibles en collection nécessitent le connecteur **0.1.5** : cliquer sur **Actualiser le module SPAM** dans le compagnon, puis redémarrer SPAM. Les petites icônes et les filigranes d’élément du jeu sont inclus dans le frontend et restent la propriété de leurs ayants droit (voir THIRD-PARTY-NOTICES.md). Les noms et descriptions restent dans la langue fournie par SPAM ; les libellés de l’interface sont disponibles en FR/EN.
+Les résistances, probabilités et talents disponibles en collection nécessitent le connecteur **0.1.6** : cliquer sur **Actualiser le module SPAM** dans le compagnon, puis redémarrer SPAM. Les petites icônes et les filigranes d’élément du jeu sont inclus dans le frontend et restent la propriété de leurs ayants droit (voir THIRD-PARTY-NOTICES.md). Les noms et descriptions restent dans la langue fournie par SPAM ; les libellés de l’interface sont disponibles en FR/EN.
 
 Les fichiers de cette nouvelle interface sont distincts de la soumission Twitch 0.1.1. Tester une nouvelle version hébergée ne remplace pas la version en cours d’examen.
+
+En collection, cliquez sur une carte pour garder la fiche ouverte et consulter les onglets de talents. Le détail des passifs, états et règles associés aux compétences et talents est affiché en mode complet. Les onglets servent à lire les talents : ils ne modifient pas la partie. En combat, la fiche conserve les valeurs réelles des cartes visibles.

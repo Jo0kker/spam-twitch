@@ -7,23 +7,24 @@ const hotspots = document.querySelector('#hotspots'), tooltip = document.querySe
 const notice = document.querySelector('#notice');
 const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && new URLSearchParams(location.search).get('local') === '1';
 const buffer = new FrameBuffer(); const nodes = new Map();
-let auth, backend = '', visible = true, latencyMs = 0, aspect = 16 / 9, frame, hoveredId = '';
+let auth, backend = '', visible = true, latencyMs = 0, aspect = 16 / 9, frame, hoveredId = '', pinned = false;
 let polling = false, pendingFetch = false, timer, renderTimer, adjustmentMs = 0, lastFailure = '', needsHistory = true;
 const make = (tag, className, value) => { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = plainGameText(value); return node; };
 const setNotice = value => { notice.textContent = value; notice.hidden = !value; };
-const hideTooltip = () => { tooltip.hidden = true; hoveredId = ''; };
+const hideTooltip = () => { tooltip.hidden = true; hoveredId = ''; pinned = false; };
 let settings = validatePresentation(), presentationSignature = '';
-// Hover closes immediately on leaving the card. Click mode is an explicit streamer choice.
+// Hover closes on leaving the card; a click pins it for reading and talent navigation.
 document.addEventListener('pointerdown', event => {
   if (!event.target.closest('.hotspot') && !event.target.closest('#tooltip')) hideTooltip();
 });
 function showTooltip(card, node) {
   hoveredId = card.instanceId;
-  const signature = JSON.stringify([card, settings]);
+  const displaySettings = pinned ? {...settings,activation:'click'} : settings;
+  const signature = JSON.stringify([card, displaySettings]);
   let view;
   if (tooltip.dataset.signature !== signature) {
     tooltip.dataset.signature = signature;
-    view = renderPanel(tooltip, card, settings, hideTooltip);
+    view = renderPanel(tooltip, card, displaySettings, hideTooltip);
   }
   tooltip.hidden = false;
   const geometry = panelGeometry(settings, innerWidth, innerHeight);
@@ -36,7 +37,7 @@ function showTooltip(card, node) {
     const overflow = body.scrollHeight > body.clientHeight + 2;
     tooltip.classList.toggle('has-overflow', overflow);
     const footer = tooltip.querySelector('.detail-footer');
-    if (settings.activation === 'hover') footer.textContent = panelText(overflow ? 'Fiche longue : faites défiler sur la carte.' : 'Survolez une autre carte pour changer de fiche.', tooltip.lang);
+    if(displaySettings.activation==='hover')footer.textContent=panelText(card.side==='collection'&&card.details?.talents?.length&&settings.mode==='complete'&&settings.showPassives?'Cliquez sur la carte pour consulter les talents.':overflow?'Fiche longue : faites défiler sur la carte.':'Survolez une autre carte pour changer de fiche.',tooltip.lang);
   }
 }
 function render() {
@@ -53,13 +54,13 @@ function render() {
     if (!entry) {
       const button = make('button', 'hotspot'); button.type = 'button';
       entry = { button, card }; nodes.set(card.instanceId, entry);
-      button.addEventListener('pointerenter', () => { if(settings.activation === 'hover') showTooltip(entry.card, button); });
-      button.addEventListener('focus', () => { if(settings.activation === 'hover') showTooltip(entry.card, button); });
-      button.addEventListener('pointerleave', () => { if(settings.activation === 'hover') hideTooltip(); });
-      button.addEventListener('blur', () => { if(settings.activation === 'hover') hideTooltip(); });
-      button.addEventListener('click', () => showTooltip(entry.card, button));
+      button.addEventListener('pointerenter', () => { if(settings.activation === 'hover' && !pinned) showTooltip(entry.card, button); });
+      button.addEventListener('focus', () => { if(settings.activation === 'hover' && !pinned) showTooltip(entry.card, button); });
+      button.addEventListener('pointerleave', () => { if(settings.activation === 'hover' && !pinned) hideTooltip(); });
+      button.addEventListener('blur', () => { if(settings.activation === 'hover' && !pinned) hideTooltip(); });
+      button.addEventListener('click', () => {pinned=true;showTooltip(entry.card, button);});
       button.addEventListener('wheel', event => {
-        if(settings.activation !== 'hover' || tooltip.hidden || hoveredId !== entry.card.instanceId) return;
+        if(settings.activation !== 'hover' || pinned || tooltip.hidden || hoveredId !== entry.card.instanceId) return;
         const scroll = tooltip.querySelector('.detail-body');
         if(scroll && scroll.scrollHeight > scroll.clientHeight) { scroll.scrollTop += event.deltaY; event.preventDefault(); }
       }, {passive:false});

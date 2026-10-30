@@ -6,11 +6,11 @@ const translations = {
   'Niveau de détail':'Detail level','Simple · compétences seulement':'Simple · abilities only','Complet · fiche de collection':'Complete · collection details',
   'Côté du panneau':'Panel side','À droite':'Right','À gauche':'Left','Largeur':'Width','Étroite':'Narrow','Standard':'Standard','Large':'Wide',
   'Taille du texte':'Text size','Petite':'Small','Normale':'Normal','Grande':'Large','Couleurs':'Colors','Selon l’élément':'Match the element','Neutres':'Neutral',
-  'Ouvrir la fiche':'Open details','Au survol · fermeture en quittant la carte':'Hover · closes when leaving the card','Au clic · lecture et défilement libres':'Click · stays open for reading and scrolling',
+  'Ouvrir la fiche':'Open details','Au survol · clic pour garder ouvert':'Hover · click to keep details open','Au clic · onglets et lecture libres':'Click · talent tabs and free reading',
   'Langue de l’interface viewer':'Viewer interface language','Automatique':'Automatic','Français':'Français','English':'English','Opacité du fond':'Background opacity',
   'PV et revenu':'HP and income','Temps de recharge':'Cooldowns','Effets passifs':'Passive effects','Effets passifs et talents':'Passive effects and talents','Histoire / description':'Lore / description','Contour de la carte survolée':'Highlight the selected card',
   'Enregistrer l’affichage':'Save display settings','Rétablir les réglages par défaut':'Restore defaults','Modifications non enregistrées':'Unsaved changes','Affichage enregistré pour cette chaîne.':'Display settings saved for this channel.',
-  'Enregistrement…':'Saving…','Aperçu · données fictives':'Preview · sample data','Le survol se ferme dès que le pointeur quitte la carte, même en direction du panneau.':'Hover details close as soon as the pointer leaves the card, including towards the panel.'
+  'Enregistrement…':'Saving…','Aperçu · données fictives':'Preview · sample data','Sans clic, la fiche se ferme dès que le pointeur quitte la carte. Cliquez sur la carte pour lire librement et consulter ses talents.':'Without a click, details close when the pointer leaves the card. Click the card to read freely and browse its talents.'
   ,'Les noms et descriptions restent dans la langue du jeu.':'Names and descriptions stay in the game’s language.'
   ,'Pour les résistances et les probabilités, actualisez le module SPAM depuis l’application puis relancez le jeu.':'For resistances and probabilities, update the SPAM module from the app and restart the game.'
 };
@@ -45,7 +45,7 @@ export function createPresentationEditor(container, {initial, onSave, language =
       ['width','Largeur',[['narrow','Étroite'],['standard','Standard'],['wide','Large']]],
       ['textSize','Taille du texte',[['small','Petite'],['normal','Normale'],['large','Grande']]],
       ['theme','Couleurs',[['element','Selon l’élément'],['neutral','Neutres']]],
-      ['activation','Ouvrir la fiche',[['hover','Au survol · fermeture en quittant la carte'],['click','Au clic · lecture et défilement libres']]],
+      ['activation','Ouvrir la fiche',[['hover','Au survol · clic pour garder ouvert'],['click','Au clic · onglets et lecture libres']]],
       ['language','Langue de l’interface viewer',[['auto','Automatique'],['fr','Français'],['en','English']]]
     ]) grid.append(field(key,label,values));
     const opacity=node('label','presentation-field');opacity.append(node('span','','Opacité du fond'));const range=node('input');range.type='range';range.min=80;range.max=100;range.step=1;range.name='opacity';range.value=draft.opacity;const percent=node('output','',`${draft.opacity}%`);opacity.append(range,percent);grid.append(opacity);
@@ -53,7 +53,7 @@ export function createPresentationEditor(container, {initial, onSave, language =
     for(const [key,label] of [['showStats','PV et revenu'],['showCooldowns','Temps de recharge'],['showPassives','Effets passifs et talents'],['showDescription','Histoire / description'],['highlight','Contour de la carte survolée']]) {
       const wrap=node('label'),checkbox=node('input');checkbox.type='checkbox';checkbox.name=key;checkbox.checked=draft[key];wrap.append(checkbox,node('span','',label));toggles.append(wrap);
     }
-    const hint=node('small','','Le survol se ferme dès que le pointeur quitte la carte, même en direction du panneau.');
+    const hint=node('small','','Sans clic, la fiche se ferme dès que le pointeur quitte la carte. Cliquez sur la carte pour lire librement et consulter ses talents.');
     const actions=node('div','presentation-actions');submit=node('button','','Enregistrer l’affichage');submit.type='submit';const reset=node('button','secondary','Rétablir les réglages par défaut');reset.type='button';actions.append(submit,reset);
     status=node('p','presentation-status');status.setAttribute('role','status');if(dirty)status.textContent=t('Modifications non enregistrées');
     form.append(grid,toggles,hint,node('small','','Les noms et descriptions restent dans la langue du jeu.'),actions,status);

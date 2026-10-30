@@ -6,6 +6,16 @@ const text = (value, max = 160) => typeof value === 'string' ? value.replace(/[\
 const gameText = (value, max = 160) => text(plainGameText(value), max);
 const number = (value, min, max, fallback = min) => Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const optionalNumber = (value, min, max) => Number.isFinite(value) ? number(value, min, max) : undefined;
+function relatedEffects(value) {
+  if (!Array.isArray(value)) return undefined;
+  const seen = new Set();
+  return value.slice(0,8).filter(effect => effect && typeof effect === 'object').flatMap(effect => {
+    const name=gameText(effect.name), description=gameText(effect.description,1500);
+    if(!name || !description || seen.has(name+'\n'+description))return [];
+    seen.add(name+'\n'+description);
+    return [{id:text(effect.id,96),name,description,descriptionTokens:sanitizeGameTokens(effect.descriptionTokens,effect.description),kind:['passive','status','keyword'].includes(effect.kind)?effect.kind:'status'}];
+  });
+}
 export function validateLayout(input = {}) {
   const layout = { ...DEFAULT_LAYOUT };
   for (const key of ['x', 'y', 'w', 'h', 'cropLeft', 'cropTop', 'cropRight', 'cropBottom']) layout[key] = number(input[key], 0, 1, layout[key]);
@@ -29,7 +39,8 @@ export function sanitizeSnapshot(input) {
       side: ['ally', 'opponent', 'collection'].includes(card.side) ? card.side : 'collection',
       order: number(card.order, 0, 10000, 0), bounds: { x: b.x, y: b.y, w: b.w, h: b.h },
       ...(card.details && typeof card.details === 'object' ? {details: {
-        ...(card.side === 'collection' && Array.isArray(card.details.talents) ? {talents: card.details.talents.slice(0, 8).filter(talent=>talent && typeof talent==='object').map(talent => ({name:gameText(talent.name), description:gameText(talent.description,1500), descriptionTokens:sanitizeGameTokens(talent.descriptionTokens,talent.description)}))} : {}),
+        ...(card.side === 'collection' && Array.isArray(card.details.talents) ? {talents: card.details.talents.slice(0, 8).filter(talent=>talent && typeof talent==='object').map(talent => ({id:text(talent.id,96),name:gameText(talent.name), ...(Array.isArray(talent.effects)?{effects:relatedEffects(talent.effects)}:{}), description:gameText(talent.description,1500), descriptionTokens:sanitizeGameTokens(talent.descriptionTokens,talent.description)}))} : {}),
+        ...(card.side==='collection'&&typeof card.details.selectedTalentId==='string'?{selectedTalentId:text(card.details.selectedTalentId,96)}:{}),
         rarity: gameText(card.details.rarity, 80), species: gameText(card.details.species, 120), region: gameText(card.details.region, 120),
         resistances: Object.fromEntries(['fire', 'water', 'earth', 'nature', 'shadow', 'light']
           .filter(key => Number.isFinite(card.details.resistances?.[key]))
@@ -38,6 +49,7 @@ export function sanitizeSnapshot(input) {
       abilities: (Array.isArray(card.abilities) ? card.abilities : []).slice(0, 12).map(ability => ({
         id: text(ability.id, 96), name: gameText(ability.name), description: gameText(ability.description, 3000),
         descriptionTokens: sanitizeGameTokens(ability.descriptionTokens,ability.description),
+        ...(Array.isArray(ability.effects)?{effects:relatedEffects(ability.effects)}:{}),
         kind: ability.kind === 'active' ? 'active' : 'passive', cooldown: number(ability.cooldown, 0, 10000, 0), maxCooldown: number(ability.maxCooldown, 0, 10000, 0),
         ...(Number.isFinite(ability.precision) ? {precision: optionalNumber(ability.precision, 0, 100)} : {}),
         ...(Number.isFinite(ability.criticalChance) ? {criticalChance: optionalNumber(ability.criticalChance, 0, 100)} : {}),

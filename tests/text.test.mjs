@@ -51,3 +51,17 @@ test('collection talent catalogue never becomes hidden combat talent data', () =
   assert.ok(clean.cards[0].details.talents[0].descriptionTokens.some(token=>token.icon==='earth'));
   assert.deepEqual(sanitizeSnapshot(clean),clean);
 });
+
+test('linked talent and ability effects keep safe descriptions and survive companion/backend normalization',()=>{
+  const input=demoSnapshot(),card=input.cards[0];card.side='collection';
+  const effects=[{id:'heart-fire',name:'<b>Cœur de feu</b>',description:'Bonus [sprite_textmeshpro_fire] Feu (+1) chaque tour',kind:'passive',private:'secret'},null,{name:'',description:'ignored'}];
+  card.details={selectedTalentId:'heart',talents:[{id:'heart',name:'Cœur FEU',description:'Commence avec le passif Cœur de feu',effects}]};
+  card.abilities[0].effects=effects;
+  const clean=sanitizeSnapshot(input),talent=clean.cards[0].details.talents[0];
+  assert.equal(clean.cards[0].details.selectedTalentId,'heart');assert.equal(talent.effects.length,1);
+  assert.equal(talent.effects[0].name,'Cœur de feu');assert.equal(talent.effects[0].private,undefined);
+  assert.ok(talent.effects[0].descriptionTokens.some(token=>token.icon==='fire'));
+  assert.equal(clean.cards[0].abilities[0].effects.length,1);
+  assert.deepEqual(sanitizeSnapshot(clean),clean);
+  for(const side of ['ally','opponent']){card.side=side;const combat=sanitizeSnapshot(input).cards[0];assert.equal(combat.details.talents,undefined);assert.equal(combat.details.selectedTalentId,undefined);assert.equal(combat.abilities[0].effects[0].name,'Cœur de feu');}
+});

@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 
 namespace SpamTwitch
 {
-    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.5")]
+    [BepInPlugin("fr.spamtools.twitch", "SPAM Twitch Connector", "0.1.6")]
     [BepInProcess("SPAM.exe")]
     public sealed class SpamTwitchPlugin : BaseUnityPlugin
     {
@@ -43,6 +43,66 @@ namespace SpamTwitch
                 "Visible UI sampling interval, clamped between 0.15 and 2 seconds.");
             Directory.CreateDirectory(outputDirectory.Value);
             Logger.LogInfo("SPAM Twitch connector ready. Output: " + outputDirectory.Value);
+        }
+
+        // Read only public effect definitions referenced by an already-visible ability.
+        // Never execute an effect or inspect hidden combat talent selections.
+        private static List<object> LinkedEffects(AbilityData ability)
+        {
+            var result = new List<object>();
+            if (!ability) return result;
+            var statuses = new List<StatusData>();
+            if (ability.passives != null) statuses.AddRange(ability.passives.Where(p => p));
+            if (ability.Effects != null) foreach (var effect in ability.Effects)
+            {
+                if (!effect) continue;
+                foreach (var field in effect.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public))
+                {
+                    try
+                    {
+                        if (typeof(StatusData).IsAssignableFrom(field.FieldType))
+                        { var status = field.GetValue(effect) as StatusData; if (status) statuses.Add(status); }
+                        else if (typeof(StatusData[]).IsAssignableFrom(field.FieldType))
+                        { var values = field.GetValue(effect) as StatusData[]; if (values != null) statuses.AddRange(values.Where(v => v)); }
+                        else if (field.FieldType == typeof(StatusType))
+                        { var status = StatusData.Get((StatusType)field.GetValue(effect)); if (status) statuses.Add(status); }
+                    }
+                    catch { /* An unavailable description must not remove the visible card. */ }
+                }
+            }
+            var seen = new HashSet<int>();
+            var definitions = new HashSet<string>();
+            foreach (var status in statuses)
+            {
+                if (result.Count >= 8) break;
+                if (!status || !seen.Add(status.GetInstanceID())) continue;
+                try
+                {
+                    var title = Plain(status.GetTitle()); var description = Plain(status.GetDesc());
+                    if (String.IsNullOrEmpty(title) || String.IsNullOrEmpty(description) || !definitions.Add(title + "\n" + description)) continue;
+                    result.Add(new { id = "status:" + status.GetInstanceID(), name = title, description = description,
+                        kind = status is ModificatorStatusData ? "passive" : "status" });
+                }
+                catch { }
+            }
+            // Match the game's keyword tooltips too (e.g. Eternity), which need not
+            // be stored as an EffectData status reference.
+            try
+            {
+                foreach (var keyword in Spam.Data.KeywordHighlighter.Find(ability.GetDescWithValue(), ability))
+                {
+                    if (result.Count >= 8) break;
+                    var linked = Spam.Data.KeywordHighlighter.PanelBehind(keyword, ability);
+                    var status = linked as StatusData; var active = linked as AbilityData;
+                    var title = Plain(status != null ? status.GetTitle() : active != null ? active.GetTitle() : keyword.Title);
+                    var description = Plain(status != null ? status.GetDesc() : active != null ? active.GetDescWithValue() : keyword.Description);
+                    if (String.IsNullOrEmpty(title) || String.IsNullOrEmpty(description) || !definitions.Add(title + "\n" + description)) continue;
+                    result.Add(new { id = "keyword:" + keyword.Id, name = title, description = description,
+                        kind = status is ModificatorStatusData ? "passive" : status != null ? "status" : "keyword" });
+                }
+            }
+            catch { }
+            return result;
         }
 
         private static float ValueOr(Func<float> read, float fallback) { try { return read(); } catch { return fallback; } }
@@ -106,6 +166,7 @@ namespace SpamTwitch
                             abilities.Add(new {
                                 id = row.Id, name = Plain(active.GetTitle()), kind = "active",
                                 description = Plain(runtime != null ? active.GetDescWithDynamicValue(runtime) : active.GetDescWithValue()),
+                                effects = LinkedEffects(active),
                                 cooldown = row.CurrentCooldown, maxCooldown = row.MaxCooldown,
                                 precision = 100f - (runtime != null ? ValueOr(() => runtime.GetChanceOfMiss(active), active.chanceOfMiss) : active.chanceOfMiss),
                                 criticalChance = active.CanCrit ? (float?)(runtime != null ? ValueOr(() => runtime.GetChanceOfCritick(active), active.chanceOfCrit) : active.chanceOfCrit) : null,
@@ -126,7 +187,8 @@ namespace SpamTwitch
                         element = data.Element ? Plain(data.Element.Name) : "",
                         details = new {
                             // Collection talents are a public catalogue, never hidden combat selections.
-                            talents = runtime == null && data.Talents != null ? data.Talents.Where(t => t).Take(8).Select(t => new { name = Plain(t.Name), description = Plain(t.GetDescWithValue()) }).ToArray() : null,
+                            selectedTalentId = runtime == null && data.Talents != null && controller.SelectedTalentIndex > 0 && controller.SelectedTalentIndex <= data.Talents.Count && data.Talents[controller.SelectedTalentIndex - 1] ? data.Talents[controller.SelectedTalentIndex - 1].id : null,
+                            talents = runtime == null && data.Talents != null ? data.Talents.Where(t => t).Take(8).Select(t => new { id = t.id, name = Plain(t.Name), description = Plain(t.GetDescWithValue()), effects = LinkedEffects(t) }).ToArray() : null,
                             rarity = data.Rarity ? Plain(data.Rarity.Name) : "",
                             species = Plain(data.Species), region = Plain(data.Region),
                             resistances = new {
@@ -220,7 +282,7 @@ namespace SpamTwitch
                             bounds = bounds, order = index,
                             abilities = new [] { new {
                                 id = talent.id, name = Plain(data.Name) + " · " + state,
-                                kind = "passive", description = description, cooldown = 0, maxCooldown = 0
+                                kind = "passive", description = description, effects = LinkedEffects(talent), cooldown = 0, maxCooldown = 0
                             } }
                         });
                     }

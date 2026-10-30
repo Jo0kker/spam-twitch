@@ -1,6 +1,6 @@
 import {plainGameText, gameTextTokens, GAME_ICONS} from './text.mjs';
 import {elementKey} from './presentation.mjs';
-const en={'Carte':'Card','Talent':'Talent','Votre équipe':'Your team','Adversaire':'Opponent','Collection':'Collection','Effets passifs':'Passive effects','Talents':'Talents','Disponibles':'Available','Résistances':'Resistances','Réduction des dégâts':'Damage reduction','Précision':'Accuracy','Critique':'Critical','PV':'HP','Revenu':'Income','Feu':'Fire','Eau':'Water','Terre':'Earth','Nature':'Nature','Ombre':'Shadow','Lumière':'Light','Fermer la fiche':'Close card details','Aucune capacité visible.':'No visible abilities.','Survolez une autre carte pour changer de fiche.':'Hover over another card to change details.','Cliquez sur une carte pour changer de fiche.':'Click a card to change details.','Fiche longue : faites défiler sur la carte.':'Long details: scroll while pointing at the card.'};
+const en={'Carte':'Card','Talent':'Talent','Votre équipe':'Your team','Adversaire':'Opponent','Collection':'Collection','Effets passifs':'Passive effects','Talents':'Talents','Disponibles':'Available','Cliquez sur la carte pour consulter les talents.':'Click the card to browse its talents.','Sans talent':'No talent','Effets associés':'Related effects','Passif associé':'Related passive','État associé':'Related status','Règle associée':'Related rule','Talent consulté':'Selected talent','Résistances':'Resistances','Réduction des dégâts':'Damage reduction','Précision':'Accuracy','Critique':'Critical','PV':'HP','Revenu':'Income','Feu':'Fire','Eau':'Water','Terre':'Earth','Nature':'Nature','Ombre':'Shadow','Lumière':'Light','Fermer la fiche':'Close card details','Aucune capacité visible.':'No visible abilities.','Survolez une autre carte pour changer de fiche.':'Hover over another card to change details.','Cliquez sur une carte pour changer de fiche.':'Click a card to change details.','Fiche longue : faites défiler sur la carte.':'Long details: scroll while pointing at the card.'};
 export function viewerLanguage(settings,browserLanguage=navigator.language){return settings.language==='auto'?(browserLanguage.toLowerCase().startsWith('fr')?'fr':'en'):settings.language;}
 export const panelText=(value,language)=>language==='en'?en[value]||value:value;
 const node=(tag,className,value)=>{const e=document.createElement(tag);if(className)e.className=className;if(value!==undefined)e.textContent=plainGameText(value);return e;};
@@ -25,9 +25,26 @@ function description(value,tokens){
   }
   return p;
 }
+function linkedEffects(effects, language) {
+  if(!effects?.length)return null;
+  const group=node('div','related-effects');
+  group.append(node('h4','',panelText('Effets associés',language)));
+  for(const effect of effects){
+    const item=node('div','related-effect');
+    const title=node('div','related-effect-title');title.append(node('span','effect-kind',panelText(effect.kind==='passive'?'Passif associé':effect.kind==='keyword'?'Règle associée':'État associé',language)),node('strong','',effect.name));
+    item.append(title,description(effect.description,effect.descriptionTokens));group.append(item);
+  }
+  return group;
+}
 export function renderPanel(panel,card,settings,onClose){
   const language=viewerLanguage(settings),t=value=>panelText(value,language),element=elementKey(card.element);
   const sidebar=settings.panelStyle==='sidebar';
+  const talents=settings.mode==='complete'&&settings.showPassives&&card.side==='collection'?(card.details?.talents||[]).map((talent,index)=>({...talent,key:talent.id||`talent:${index}`})):[];
+  const previousSelection=panel.dataset.card===card.instanceId?panel.dataset.talent:card.details?.selectedTalentId;
+  const selectedKey=settings.activation==='click'&&talents.some(talent=>talent.key===previousSelection)?previousSelection:'';
+  const selectedTalent=talents.find(talent=>talent.key===selectedKey);
+  panel.dataset.talent=selectedKey;
+  panel.classList.toggle('has-talent-help',settings.activation==='hover'&&talents.length>0);
   const previous=panel.dataset.card===card.instanceId?panel.querySelector('.detail-body')?.scrollTop||0:0;
   panel.dataset.card=card.instanceId;panel.dataset.element=settings.theme==='element'?element:'neutral';panel.dataset.mode=settings.mode;panel.dataset.interaction=settings.activation;panel.dataset.side=settings.side;panel.dataset.panelStyle=sidebar?'sidebar':'card';
   panel.style.setProperty('--panel-opacity',settings.opacity/100);panel.style.setProperty('--text-size',{small:'12px',normal:'14px',large:'16px'}[settings.textSize]);panel.lang=language;
@@ -47,7 +64,22 @@ export function renderPanel(panel,card,settings,onClose){
   if(settings.activation==='click'){
     const close=node('button','detail-close','×');close.type='button';close.setAttribute('aria-label',t('Fermer la fiche'));close.addEventListener('click',onClose);head.append(close);
   }
+  let tabs;
+  if(talents.length&&settings.activation==='click'){
+    tabs=node('nav','talent-tabs');tabs.setAttribute('aria-label',t('Talents'));
+    for(const talent of [{key:'',name:t('Sans talent')},...talents]){
+      const button=node('button','talent-tab',talent.name);button.type='button';button.dataset.talentKey=talent.key;button.setAttribute('aria-pressed',String(talent.key===selectedKey));
+      button.addEventListener('click',()=>{
+        panel.dataset.talent=talent.key;const scroll=panel.querySelector('.detail-body');if(scroll)scroll.scrollTop=0;renderPanel(panel,card,settings,onClose);
+        [...panel.querySelectorAll('.talent-tab')].find(b=>b.dataset.talentKey===talent.key)?.focus();
+      });tabs.append(button);
+    }
+  }
   const body=node('div','detail-body'),content=node('div','detail-content');body.append(content);
+  if(selectedTalent){
+    const selected=node('section','selected-talent');selected.append(node('span','section-heading',t('Talent consulté')),node('h2','',selectedTalent.name),description(selectedTalent.description,selectedTalent.descriptionTokens));
+    const effects=linkedEffects(selectedTalent.effects,language);if(effects)selected.append(effects);content.append(selected);
+  }
   if(settings.showStats&&!card.instanceId.startsWith('talent:')){
     const stats=node('div','card-stats'),track=node('div','hp-track'),fill=node('div','hp-fill');
     fill.style.width=`${card.maxHp>0?Math.max(0,Math.min(100,card.hp/card.maxHp*100)):0}%`;track.append(fill);
@@ -84,14 +116,16 @@ export function renderPanel(panel,card,settings,onClose){
         }
         if(metrics.children.length)row.append(metrics);
       }
-      article.append(top,row);section.append(article);
+      article.append(top,row);
+      if(settings.mode==='complete'){const effects=linkedEffects((ability.effects||[]).filter(effect=>settings.showPassives||effect.kind!=='passive'),language);if(effects)article.append(effects);}
+      section.append(article);
     }
     content.append(section);
   }
   if(!card.abilities.length)content.append(node('p','empty-detail',t('Aucune capacité visible.')));
-  if(settings.mode==='complete'&&settings.showPassives&&card.side==='collection'&&card.details?.talents?.length){
+  if(talents.length&&!selectedTalent){
     const section=node('section','talent-section'),label=node('div','section-label');label.append(node('h2','section-heading',t('Talents')),node('span','',t('Disponibles')));section.append(label);
-    for(const talent of card.details.talents){const item=node('article','talent');item.append(node('h3','',talent.name),description(talent.description,talent.descriptionTokens));section.append(item);}content.append(section);
+    for(const talent of talents){const item=node('article','talent');item.append(node('h3','',talent.name),description(talent.description,talent.descriptionTokens));const effects=linkedEffects(talent.effects,language);if(effects)item.append(effects);section.append(item);}content.append(section);
   }
   if(settings.mode==='complete'&&Object.keys(card.details?.resistances||{}).length){
     const section=node('section','resistance-section');section.append(node('h2','section-heading',t('Résistances')));const grid=node('dl','resistance-grid');
@@ -102,5 +136,5 @@ export function renderPanel(panel,card,settings,onClose){
     if(sidebar){section.classList.add('panel-resistances');section.append(node('p','resistance-caption',t('Réduction des dégâts')));pinnedResistance=section;}else content.append(section);
   }
   const footer=node('footer','detail-footer',t(settings.activation==='click'?'Cliquez sur une carte pour changer de fiche.':'Survolez une autre carte pour changer de fiche.'));
-  panel.replaceChildren(...(art?[art]:[]),head,body,...(pinnedResistance?[pinnedResistance]:[]),footer);body.scrollTop=previous;return{body,footer,language};
+  panel.replaceChildren(...(art?[art]:[]),head,...(tabs?[tabs]:[]),body,...(pinnedResistance?[pinnedResistance]:[]),footer);body.scrollTop=previous;return{body,footer,language};
 }
